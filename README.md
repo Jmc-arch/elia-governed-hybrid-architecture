@@ -26,6 +26,21 @@ Elia is an open-source architecture for building **reliable, auditable, and resi
 
 Rather than centering intelligence entirely around Large Language Models (LLMs), Elia introduces a governed, hybrid approach in which symbolic control and system-level supervision remain primary, and neural models are used only when appropriate.
 
+## Architecture Overview
+
+```mermaid
+flowchart TD
+    In[User / Environment] --> Gov[Governance Layer<br>Rules / Validation / Safety]
+    Gov --> Orch[Orchestrator]
+    
+    Orch --> Symb[Symbolic Engine]
+    Orch --> Mem[(Memory)]
+    Orch --> Neur[Neural Module<br><i>Optional Capability</i>]
+    
+    Symb --> Out[Decision / Action]
+    Mem --> Out
+    Neur --> Out
+
 Elia can be understood as an **AI Operating System**: a structured environment where intelligence is orchestrated, monitored, and constrained rather than left implicit.
 
 ---
