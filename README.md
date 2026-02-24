@@ -41,6 +41,8 @@ flowchart TD
     Mem --> Out
     Neur --> Out
 
+```
+
 Elia can be understood as an **AI Operating System**: a structured environment where intelligence is orchestrated, monitored, and constrained rather than left implicit.
 
 ---
