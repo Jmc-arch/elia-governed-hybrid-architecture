@@ -266,7 +266,9 @@ This project is not optimized for rapid demo creation.
 
 This repository currently contains architecture and early scaffolding only.
 
-Initial implementation will focus exclusively on Phase 0.
+**Phase 0 skeleton is now available in `/phase0`.**
+It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.
+Run with: `python main.py` (no dependencies required, Python 3.8+)
 
 ---
 
