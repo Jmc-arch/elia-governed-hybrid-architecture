@@ -4,7 +4,7 @@
 
 import sqlite3
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class ELMem:
@@ -58,11 +58,11 @@ class ELMem:
         """Write or update a key in the system state store."""
         try:
             serialized = json.dumps(value)
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             self._conn.execute(
                 "INSERT INTO system_state (key, value, updated_at) VALUES (?, ?, ?) "
                 "ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=excluded.updated_at",
-                (key, serialized, now)
+                (key, serialized, now),
             )
             self._conn.commit()
             print(f"[EL_MEM] Written: '{key}'")
@@ -88,10 +88,10 @@ class ELMem:
     def log_event(self, source: str, topic: str, payload: dict) -> bool:
         """Append an event to the audit log."""
         try:
-            now = datetime.utcnow().isoformat()
+            now = datetime.now(timezone.utc).isoformat()
             self._conn.execute(
                 "INSERT INTO event_log (timestamp, source, topic, payload) VALUES (?, ?, ?, ?)",
-                (now, source, topic, json.dumps(payload))
+                (now, source, topic, json.dumps(payload)),
             )
             self._conn.commit()
             return True

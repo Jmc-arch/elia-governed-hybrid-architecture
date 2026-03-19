@@ -3,8 +3,12 @@
 # Single source of truth for system mode and flags.
 
 import threading
-from datetime import datetime
-from el_mem import ELMem
+from datetime import datetime, timezone
+
+try:
+    from .el_mem import ELMem
+except ImportError:  # pragma: no cover - supports direct script execution
+    from el_mem import ELMem
 
 
 # Valid system states
@@ -12,11 +16,11 @@ VALID_STATES = {"INIT", "STABILIZING", "INTERACTIVE", "MAINTENANCE", "SHUTDOWN"}
 
 # Allowed state transitions
 TRANSITIONS = {
-    "INIT":         {"STABILIZING"},
-    "STABILIZING":  {"INTERACTIVE", "SHUTDOWN"},
-    "INTERACTIVE":  {"MAINTENANCE", "SHUTDOWN"},
-    "MAINTENANCE":  {"INTERACTIVE", "SHUTDOWN"},
-    "SHUTDOWN":     set()  # Terminal state
+    "INIT": {"STABILIZING"},
+    "STABILIZING": {"INTERACTIVE", "SHUTDOWN"},
+    "INTERACTIVE": {"MAINTENANCE", "SHUTDOWN"},
+    "MAINTENANCE": {"INTERACTIVE", "SHUTDOWN"},
+    "SHUTDOWN": set(),  # Terminal state
 }
 
 
@@ -71,8 +75,11 @@ class SMSyn:
             self._memory.log_event(
                 source="SM_SYN",
                 topic="state_transition",
-                payload={"from": previous, "to": new_state,
-                         "timestamp": datetime.utcnow().isoformat()}
+                payload={
+                    "from": previous,
+                    "to": new_state,
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                },
             )
             print(f"[SM_SYN] Transition: {previous} → {new_state}")
             return True
@@ -97,5 +104,5 @@ class SMSyn:
         return {
             "state": self._state,
             "flags": self._flags.copy(),
-            "timestamp": datetime.utcnow().isoformat()
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         }
