@@ -113,8 +113,9 @@ running prototype including:
 
 No neural processing. No external dependencies. Python 3.8+ only.
 ```bash
-cd phase0
-python main.py
+python phase0/main.py
+python -m phase0.main
+python -m unittest discover -s tests -v
 ```
 
 Full implementation roadmap in [README.DEV.md](README.DEV.md).
@@ -143,4 +144,3 @@ Please refer to README.DEV.md for information on how the project approaches an i
 
 Elia explores a simple but demanding idea:  
 **intelligence should be powerful, but never ungoverned.**
-

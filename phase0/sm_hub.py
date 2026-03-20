@@ -4,7 +4,7 @@
 
 import asyncio
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable, Dict, List
 import uuid
 
@@ -12,24 +12,27 @@ import uuid
 @dataclass
 class Message:
     """Standard message format for all inter-module communication."""
+
     source: str
     destination: str
     topic: str
     payload: dict
     priority: str = "normal"  # low | normal | high | critical
     correlation_id: str = field(default_factory=lambda: str(uuid.uuid4()))
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
+    timestamp: str = field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
 
 
 class SMHub:
     """
     SM_HUB — Message Bus (Phase 0 MVP)
-    
+
     Responsibilities:
     - Route messages between modules.
     - Support topic-based subscriptions.
     - Detect delivery failures and notify SM_GSM (future phase).
-    
+
     MVP scope: in-process async queue, no broker, no persistence.
     """
 
@@ -49,7 +52,9 @@ class SMHub:
     async def publish(self, message: Message):
         """Publish a message to the queue for routing."""
         await self._queue.put(message)
-        print(f"[SM_HUB] Message queued | {message.source} → {message.destination} | topic: {message.topic}")
+        print(
+            f"[SM_HUB] Message queued | {message.source} → {message.destination} | topic: {message.topic}"
+        )
 
     async def _route(self, message: Message):
         """Internal: deliver message to all subscribers of its topic."""

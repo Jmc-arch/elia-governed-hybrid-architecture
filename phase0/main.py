@@ -3,9 +3,15 @@
 # Proves that SM_HUB, EL_MEM, and SM_SYN work together before any intelligence is introduced.
 
 import asyncio
-from el_mem import ELMem
-from sm_hub import SMHub, Message
-from sm_syn import SMSyn
+
+try:
+    from .el_mem import ELMem
+    from .sm_hub import Message, SMHub
+    from .sm_syn import SMSyn
+except ImportError:  # pragma: no cover - supports direct script execution
+    from el_mem import ELMem
+    from sm_hub import Message, SMHub
+    from sm_syn import SMSyn
 
 
 async def main():
@@ -27,9 +33,7 @@ async def main():
     async def handle_system_event(message: Message):
         print(f"[HANDLER] Received on '{message.topic}': {message.payload}")
         memory.log_event(
-            source=message.source,
-            topic=message.topic,
-            payload=message.payload
+            source=message.source, topic=message.topic, payload=message.payload
         )
 
     hub.subscribe("system_event", handle_system_event)
@@ -48,12 +52,14 @@ async def main():
 
     # --- Step 7: Publish a test message ---
     print("\n[MAIN] Publishing test message...")
-    await hub.publish(Message(
-        source="main",
-        destination="SM_SYN",
-        topic="system_event",
-        payload={"event": "boot_complete", "state": syn.get_state()}
-    ))
+    await hub.publish(
+        Message(
+            source="main",
+            destination="SM_SYN",
+            topic="system_event",
+            payload={"event": "boot_complete", "state": syn.get_state()},
+        )
+    )
 
     # --- Step 8: Let the hub process the message ---
     await asyncio.sleep(0.5)
@@ -67,7 +73,9 @@ async def main():
     # --- Step 10: Print audit log ---
     print("\n[MAIN] Audit log (last 10 events):")
     for event in memory.read_events(limit=10):
-        print(f"  [{event['timestamp']}] {event['source']} | {event['topic']} | {event['payload']}")
+        print(
+            f"  [{event['timestamp']}] {event['source']} | {event['topic']} | {event['payload']}"
+        )
 
     # --- Shutdown ---
     print("\n[MAIN] Initiating shutdown...")

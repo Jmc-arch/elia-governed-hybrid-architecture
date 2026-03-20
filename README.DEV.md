@@ -251,7 +251,21 @@ ELIA values correctness and governance over speed.
 
 ---
 
-## 11. Who This Is For
+## 11. Phase 0 Local Verification
+
+Use the current skeleton from the repository root:
+
+```bash
+python phase0/main.py
+python -m phase0.main
+python -m unittest discover -s tests -v
+```
+
+The Phase 0 demo writes a local `elia.db` file for audit logging.
+
+---
+
+## 12. Who This Is For
 
 - System engineers.
 - Architecture-driven developers.
@@ -276,5 +290,4 @@ Run with: `python main.py` (no dependencies required, Python 3.8+)
 
 
 License: Apache License 2.0
-
 
