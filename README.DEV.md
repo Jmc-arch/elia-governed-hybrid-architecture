@@ -4,10 +4,6 @@
 >  
 > This is not a feature list. It is a systems strategy.
 
-> **Terminology note:**  
-> This document uses the term **Stage** to describe implementation progression (Stage 0, 1, 2, 3).  
-> This is intentionally distinct from **Phase** (Phase 0–3), which refers to Elia's runtime request cycle as defined in EL-ARCH.md.
-
 ---
 
 ## 1. Development Philosophy
@@ -284,8 +280,8 @@ This project is not optimized for rapid demo creation.
 
 This repository currently contains architecture and early scaffolding only.
 
-**Stage 0 skeleton is now available in `/phase0`.**  
-It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.  
+**Stage 0 skeleton is now available in `/phase0`.**
+It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.
 Run with: `python main.py` (no dependencies required, Python 3.8+)
 
 ---
