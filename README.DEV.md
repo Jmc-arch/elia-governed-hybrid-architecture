@@ -4,6 +4,10 @@
 >  
 > This is not a feature list. It is a systems strategy.
 
+> **Terminology note:**  
+> This document uses the term **Stage** to describe implementation progression (Stage 0, 1, 2, 3).  
+> This is intentionally distinct from **Phase** (Phase 0–3), which refers to Elia's runtime request cycle as defined in EL-ARCH.md.
+
 ---
 
 ## 1. Development Philosophy
@@ -58,27 +62,27 @@ Simplicity is a feature at this stage.
 
 ---
 
-## 4. Development Phases Overview
+## 4. Development Stages Overview
 
 The project is intentionally built in layers.
 
-Each phase validates a system property before moving forward.
+Each stage validates a system property before moving forward.
 
-### Phase 0 — System Skeleton
+### Stage 0 — System Skeleton
 Goal: A stable, observable execution core without intelligence.
 
-### Phase 1 — Symbolic Interaction
+### Stage 1 — Symbolic Interaction
 Goal: Deterministic interaction without neural dependency.
 
-### Phase 2 — Governance
+### Stage 2 — Governance
 Goal: Controlled decision-making about neural activation.
 
-### Phase 3 — Neural Capability (Optional)
+### Stage 3 — Neural Capability (Optional)
 Goal: Introduce neural processing safely.
 
 ---
 
-## 5. Phase 0 — System Skeleton (Highest Priority)
+## 5. Stage 0 — System Skeleton (Highest Priority)
 
 These modules form the structural backbone of ELIA.
 
@@ -138,7 +142,7 @@ Enforces deterministic execution flow.
 
 ---
 
-## 6. Phase 1 — Symbolic Interaction
+## 6. Stage 1 — Symbolic Interaction
 
 Once the skeleton is stable, the system can interact.
 
@@ -176,7 +180,7 @@ If behavior cannot be observed, it cannot be governed.
 
 ---
 
-## 7. Phase 2 — Governance
+## 7. Stage 2 — Governance
 
 Only after the system is stable and observable do we introduce governance logic.
 
@@ -202,7 +206,7 @@ This enforces architectural authority separation.
 
 ---
 
-## 8. Phase 3 — Neural Capability (Optional)
+## 8. Stage 3 — Neural Capability (Optional)
 
 ### 9. EL_CRN — Neural Core
 
@@ -251,7 +255,7 @@ ELIA values correctness and governance over speed.
 
 ---
 
-## 11. Phase 0 Local Verification
+## 11. Stage 0 Local Verification
 
 Use the current skeleton from the repository root:
 
@@ -261,7 +265,7 @@ python -m phase0.main
 python -m unittest discover -s tests -v
 ```
 
-The Phase 0 demo writes a local `elia.db` file for audit logging.
+The Stage 0 demo writes a local `elia.db` file for audit logging.
 
 ---
 
@@ -276,12 +280,12 @@ This project is not optimized for rapid demo creation.
 
 ---
 
-## 12. Status
+## 13. Status
 
 This repository currently contains architecture and early scaffolding only.
 
-**Phase 0 skeleton is now available in `/phase0`.**
-It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.
+**Stage 0 skeleton is now available in `/phase0`.**  
+It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.  
 Run with: `python main.py` (no dependencies required, Python 3.8+)
 
 ---
@@ -290,4 +294,3 @@ Run with: `python main.py` (no dependencies required, Python 3.8+)
 
 
 License: Apache License 2.0
-
