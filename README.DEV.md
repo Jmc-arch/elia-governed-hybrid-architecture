@@ -58,27 +58,27 @@ Simplicity is a feature at this stage.
 
 ---
 
-## 4. Development Stages Overview
+## 4. Development Phases Overview
 
 The project is intentionally built in layers.
 
-Each stage validates a system property before moving forward.
+Each phase validates a system property before moving forward.
 
-### Stage 0 — System Skeleton
+### Phase 0 — System Skeleton
 Goal: A stable, observable execution core without intelligence.
 
-### Stage 1 — Symbolic Interaction
+### Phase 1 — Symbolic Interaction
 Goal: Deterministic interaction without neural dependency.
 
-### Stage 2 — Governance
+### Phase 2 — Governance
 Goal: Controlled decision-making about neural activation.
 
-### Stage 3 — Neural Capability (Optional)
+### Phase 3 — Neural Capability (Optional)
 Goal: Introduce neural processing safely.
 
 ---
 
-## 5. Stage 0 — System Skeleton (Highest Priority)
+## 5. Phase 0 — System Skeleton (Highest Priority)
 
 These modules form the structural backbone of ELIA.
 
@@ -138,7 +138,7 @@ Enforces deterministic execution flow.
 
 ---
 
-## 6. Stage 1 — Symbolic Interaction
+## 6. Phase 1 — Symbolic Interaction
 
 Once the skeleton is stable, the system can interact.
 
@@ -176,7 +176,7 @@ If behavior cannot be observed, it cannot be governed.
 
 ---
 
-## 7. Stage 2 — Governance
+## 7. Phase 2 — Governance
 
 Only after the system is stable and observable do we introduce governance logic.
 
@@ -202,7 +202,7 @@ This enforces architectural authority separation.
 
 ---
 
-## 8. Stage 3 — Neural Capability (Optional)
+## 8. Phase 3 — Neural Capability (Optional)
 
 ### 9. EL_CRN — Neural Core
 
@@ -251,7 +251,7 @@ ELIA values correctness and governance over speed.
 
 ---
 
-## 11. Stage 0 Local Verification
+## 11. Phase 0 Local Verification
 
 Use the current skeleton from the repository root:
 
@@ -261,7 +261,7 @@ python -m phase0.main
 python -m unittest discover -s tests -v
 ```
 
-The Stage 0 demo writes a local `elia.db` file for audit logging.
+The Phase 0 demo writes a local `elia.db` file for audit logging.
 
 ---
 
@@ -280,7 +280,7 @@ This project is not optimized for rapid demo creation.
 
 This repository currently contains architecture and early scaffolding only.
 
-**Stage 0 skeleton is now available in `/phase0`.**
+**Phase 0 skeleton is now available in `/phase0`.**
 It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.
 Run with: `python main.py` (no dependencies required, Python 3.8+)
 
