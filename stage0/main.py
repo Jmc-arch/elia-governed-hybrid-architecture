@@ -1,6 +1,6 @@
-# main.py — ELIA Phase 0
+# main.py — ELIA Stage 0
 # Entry point: boots the system skeleton and validates core coordination.
-# Proves that SM_HUB, EL_MEM, and SM_SYN work together before any intelligence is introduced.
+# Proves that SM_HUB, EL_MEM, and SM_SYN work together.
 
 import asyncio
 
@@ -16,7 +16,7 @@ except ImportError:  # pragma: no cover - supports direct script execution
 
 async def main():
     print("=" * 50)
-    print("  ELIA — Phase 0 Skeleton Boot")
+    print("  ELIA — Stage 0 Skeleton Boot")
     print("  Neural intelligence: NOT active (by design)")
     print("=" * 50)
 
@@ -84,7 +84,7 @@ async def main():
     await hub_task
     memory.close()
 
-    print("\n[MAIN] Phase 0 boot sequence complete.")
+    print("\n[MAIN] Stage 0 boot sequence complete.")
     print("  Coordination: OK")
     print("  State transitions: OK")
     print("  Audit trail: OK")
