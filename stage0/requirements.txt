@@ -1,18 +1,18 @@
-# ELIA Phase 0 — Dependencies
+# ELIA Stage 0 — Dependencies
 # Intentionally minimal. No neural libraries at this stage.
 
-# No external dependencies required for Phase 0.
+# No external dependencies required for Stage 0.
 # All modules use Python standard library only:
 #   - asyncio  (message bus)
 #   - sqlite3  (memory layer)
 #   - threading (state coordination locks)
 #   - json, uuid, dataclasses, datetime
 
-# Phase 1+ will introduce:
+# Stage 1+ will introduce:
 # pydantic>=2.0
 # loguru
 
-# Phase 3 (optional neural) will introduce:
+# Stage 3 (optional neural) will introduce:
 # torch
 # transformers
 # sentence-transformers
