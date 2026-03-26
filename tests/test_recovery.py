@@ -1,4 +1,4 @@
-# test_recovery.py — ELIA Phase 0
+# test_recovery.py — ELIA Stage 0
 # Recovery tests: verifies that the system correctly restores its state
 # after a simulated crash, and validates Option B persistence contract.
 #
@@ -10,8 +10,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from phase0.el_mem import ELMem
-from phase0.sm_syn import SMSyn
+from stage0.el_mem import ELMem
+from stage0.sm_syn import SMSyn
 
 
 class TestOptionBPersistenceContract(unittest.TestCase):
@@ -121,7 +121,7 @@ class TestRecoveryAfterCrash(unittest.TestCase):
         A new instance boots and reads state from the same DB.
         Expected: New instance recovers INTERACTIVE from EL_MEM.
         """
-        # --- Phase 1: Normal boot and operation ---
+        # --- Stage 0: Normal boot and operation ---
         memory_1 = ELMem(self.db_path)
         syn_1 = SMSyn(memory=memory_1)
         syn_1.transition_to("STABILIZING")
@@ -130,7 +130,7 @@ class TestRecoveryAfterCrash(unittest.TestCase):
         memory_1.close()
         # Simulate crash: objects are destroyed, DB file remains on disk
 
-        # --- Phase 2: Recovery boot ---
+        # --- Recovery boot ---
         memory_2 = ELMem(self.db_path)
         recovered_state = memory_2.atomic_read("system_state")
 
@@ -143,7 +143,7 @@ class TestRecoveryAfterCrash(unittest.TestCase):
         Scenario: neural_processing is activated, then system crashes.
         Expected: New instance recovers the flag value from EL_MEM.
         """
-        # --- Phase 1: Boot and activate neural processing ---
+        # --- Stage 0: Boot and activate neural processing ---
         memory_1 = ELMem(self.db_path)
         syn_1 = SMSyn(memory=memory_1)
         syn_1.transition_to("STABILIZING")
@@ -152,7 +152,7 @@ class TestRecoveryAfterCrash(unittest.TestCase):
         self.assertTrue(syn_1.get_flag("neural_processing"))
         memory_1.close()
 
-        # --- Phase 2: Recovery ---
+        # --- Recovery ---
         memory_2 = ELMem(self.db_path)
         recovered_flags = memory_2.atomic_read("system_flags")
 
@@ -166,7 +166,7 @@ class TestRecoveryAfterCrash(unittest.TestCase):
         Scenario: Several transitions occur, then system crashes.
         Expected: Complete audit trail is recoverable from EL_MEM.
         """
-        # --- Phase 1: Boot and transitions ---
+        # --- Stage 0: Boot and transitions ---
         memory_1 = ELMem(self.db_path)
         syn_1 = SMSyn(memory=memory_1)
         syn_1.transition_to("STABILIZING")
@@ -174,7 +174,7 @@ class TestRecoveryAfterCrash(unittest.TestCase):
         syn_1.transition_to("MAINTENANCE")
         memory_1.close()
 
-        # --- Phase 2: Recovery — read audit trail ---
+        # --- Recovery — read audit trail ---
         memory_2 = ELMem(self.db_path)
         events = memory_2.read_events(limit=20)
 
