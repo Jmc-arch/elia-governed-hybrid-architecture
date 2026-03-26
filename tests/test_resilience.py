@@ -1,8 +1,8 @@
-# test_resilience.py — ELIA Phase 0
+# test_resilience.py — ELIA Stage 0
 # Resilience tests: verifies that the system continues operating
 # when individual components fail or behave unexpectedly.
 #
-# This validates the Phase 0 requirement:
+# This validates the Stage 0 requirement:
 # "Components can fail without collapsing the whole system."
 
 import asyncio
@@ -11,9 +11,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from phase0.el_mem import ELMem
-from phase0.sm_hub import Message, SMHub
-from phase0.sm_syn import SMSyn
+from stage0.el_mem import ELMem
+from stage0.sm_hub import Message, SMHub
+from stage0.sm_syn import SMSyn
 
 
 class TestSMHubResilience(unittest.IsolatedAsyncioTestCase):
@@ -146,7 +146,6 @@ class TestELMemResilience(unittest.TestCase):
         self.memory.atomic_write("system_state", "STABILIZING")
 
         # Simulate a write failure by patching atomic_write directly
-        original_write = self.memory.atomic_write
         with patch.object(self.memory, "atomic_write", return_value=False):
             result = self.memory.atomic_write("system_state", "INTERACTIVE")
             self.assertFalse(result)  # Write must report failure
