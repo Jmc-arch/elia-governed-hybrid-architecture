@@ -1,7 +1,10 @@
+# test_sm_hub.py — ELIA Stage 0
+# Unit tests for the message bus (SM_HUB)
+
 import asyncio
 import unittest
 
-from phase0.sm_hub import Message, SMHub
+from stage0.sm_hub import Message, SMHub
 
 
 class TestSMHub(unittest.IsolatedAsyncioTestCase):
