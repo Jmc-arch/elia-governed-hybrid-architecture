@@ -1,4 +1,4 @@
-# sm_syn.py — ELIA Phase 0
+# sm_syn.py — ELIA Stage 0
 # State coordination: manages global system state and valid transitions.
 # Single source of truth for system mode and flags.
 #
@@ -32,7 +32,7 @@ TRANSITIONS = {
 
 class SMSyn:
     """
-    SM_SYN — State Coordination (Phase 0 MVP)
+    SM_SYN — State Coordination (Stage 0 MVP)
 
     Persistence Contract (Option B — Pessimistic):
     - A transition is committed ONLY if EL_MEM persistence succeeds.
