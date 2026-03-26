@@ -19,7 +19,7 @@ To explore ELIA, the following reading order is recommended:
 
 # Elia — Governed Hybrid Cognitive Architecture
 
-> **Status:** Experimental — Phase 0 skeleton available
+> **Status:** Experimental — Stage 0 skeleton available
 > **License:** Apache 2.0
 
 Elia is an open-source architecture for building **reliable, auditable, and resilient intelligent systems**.
@@ -105,7 +105,7 @@ Elia is intended for:
 This repository provides an architectural specification and an 
 initial working skeleton.
 
-**Phase 0 is now available in [`/phase0`](phase0/)** — a minimal 
+**Stage 0 is now available in [`/stage0`](stage0/)** — a minimal 
 running prototype including:
 - `SM_HUB` — async message bus
 - `EL_MEM` — persistent memory layer (SQLite)
@@ -113,8 +113,8 @@ running prototype including:
 
 No neural processing. No external dependencies. Python 3.8+ only.
 ```bash
-python phase0/main.py
-python -m phase0.main
+python stage0/main.py
+python -m stage0.main
 python -m unittest discover -s tests -v
 ```
 
