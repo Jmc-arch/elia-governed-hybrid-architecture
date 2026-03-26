@@ -1,9 +1,12 @@
+# test_sm_syn.py — ELIA Stage 0
+# Unit tests for the state coordination layer (SM_SYN)
+
 import tempfile
 import unittest
 from pathlib import Path
 
-from phase0.el_mem import ELMem
-from phase0.sm_syn import SMSyn
+from stage0.el_mem import ELMem
+from stage0.sm_syn import SMSyn
 
 
 class TestSMSyn(unittest.TestCase):
