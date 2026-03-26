@@ -1,4 +1,4 @@
-# el_mem.py — ELIA Phase 0
+# el_mem.py — ELIA Stage 0
 # Memory layer: persistent storage using SQLite.
 # All state and audit trail data is written here.
 
@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 
 class ELMem:
     """
-    EL_MEM — Memory Layer (Phase 0 MVP)
+    EL_MEM — Memory Layer (Stage 0 MVP)
 
     Responsibilities:
     - Persist system state and events.
