@@ -1,9 +1,12 @@
+# test_el_mem.py — ELIA Stage 0
+# Unit tests for the memory layer (EL_MEM)
+
 import json
 import tempfile
 import unittest
 from pathlib import Path
 
-from phase0.el_mem import ELMem
+from stage0.el_mem import ELMem
 
 
 class TestELMem(unittest.TestCase):
