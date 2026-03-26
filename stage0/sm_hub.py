@@ -1,4 +1,4 @@
-# sm_hub.py — ELIA Phase 0
+# sm_hub.py — ELIA Stage 0
 # Central message bus: routes messages between modules.
 # All inter-module communication passes through here.
 
@@ -26,12 +26,12 @@ class Message:
 
 class SMHub:
     """
-    SM_HUB — Message Bus (Phase 0 MVP)
+    SM_HUB — Message Bus (Stage 0 MVP)
 
     Responsibilities:
     - Route messages between modules.
     - Support topic-based subscriptions.
-    - Detect delivery failures and notify SM_GSM (future phase).
+    - Detect delivery failures and notify SM_GSM (future stage).
 
     MVP scope: in-process async queue, no broker, no persistence.
     """
