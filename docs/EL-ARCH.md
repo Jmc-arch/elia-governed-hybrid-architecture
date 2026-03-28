@@ -229,10 +229,10 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 **Adaptive Warm-up**: Maintains two distinct counters during warm-up phase: Dense_validated_cycles counter (incremented if at least 5 user requests processed during the cycle window).
 - Total_cumulative_requests counter (incremented on each processed request).
 **Exit Criteria**: The stabilization phase ends when one of the following conditions is met:
-- Standard condition: 8 validated cycles with at least 5 requests each, minimum total 10 valid cycles
+- Standard condition: 8 validated cycles with at least 5 requests each
 - Low traffic condition: 60 cumulative requests processed with minimum 5 validated cycles, minimum duration 15 minutes
-- Short-circuit condition: state restoration dating less than 12 hours (instead of 24), saved Stability_Index greater than or equal to 75, identical environment verified
-- Absolute timeout: 20 minutes (instead of 30)
+- Short-circuit condition: state restoration dating less than 12 hours , saved Stability_Index greater than or equal to 75, identical environment verified
+- Absolute timeout: 20 minutes 
 
 - In low traffic environment (less than 3 requests per 10-minute slot), a cycle is considered valid from 3 processed requests (instead of 5).
 - Progression logging on each cycle: "Warm-up progression: cycle X, dense_validated Y, cumulative_requests Z".
@@ -1136,7 +1136,7 @@ Routing activation via SM_HUB.
 Detection and application of environment profile (Linux Docker, etc.).
 **Operational Stabilization (variable duration, see SM_SYN - Adaptive warm-up for detailed criteria, typically 5-20 minutes)**: Observation period (formerly "warm-up") allowing the system to validate its stability before full activation.
 Neural processing remains deactivated during this phase to prioritize light symbolic validations.
-Exit from this phase occurs when one of the following conditions is met: 8 evaluation cycles validated with at least 5 requests each, 120 cumulative requests processed with minimum 5 dense cycles, or absolute timeout of 20 minutes.
+Exit from this phase occurs when one of the following conditions is met: 8 evaluation cycles validated with at least 5 requests each, 60 cumulative requests processed with minimum 5 dense cycles, minimum duration 10 minutes, or absolute timeout of 20 minutes.
 **Operational Stabilization Short-Circuit**
 
 Strict conditions to authorize short-circuit (all required simultaneously):
