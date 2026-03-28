@@ -230,7 +230,7 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 - Total_cumulative_requests counter (incremented on each processed request).
 **Exit Criteria**: The stabilization phase ends when one of the following conditions is met:
 - Standard condition: 8 validated cycles with at least 5 requests each
-- Low traffic condition: 60 cumulative requests processed with minimum 5 validated cycles, minimum duration 15 minutes
+- Low traffic condition: 60 cumulative requests processed with minimum 5 validated cycles, minimum duration 10 minutes
 - Short-circuit condition: state restoration dating less than 12 hours , saved Stability_Index greater than or equal to 75, identical environment verified
 - Absolute timeout: 20 minutes 
 
