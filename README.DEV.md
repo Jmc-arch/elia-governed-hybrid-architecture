@@ -285,7 +285,7 @@ This repository currently contains architecture and early scaffolding only.
 
 **Stage 0 skeleton is now available in `/stage0`.**
 It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.
-Run with: `python main.py` (no dependencies required, Python 3.8+)
+Run with: `python stage0/main.py` (no dependencies required, Python 3.8+)
 
 ---
 
