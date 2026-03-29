@@ -46,6 +46,38 @@ class TestELMem(unittest.TestCase):
         self.assertEqual(events[0]["topic"], "system_event")
         self.assertEqual(json.loads(events[0]["payload"]), event_payload)
 
+    def test_wal_mode_is_enabled(self):
+        """
+        Scenario: EL_MEM initializes with WAL mode.
+        Expected: journal_mode returns 'wal' — required by EL-ARCH spec.
+        WAL mode allows concurrent reads during writes, essential for Stage 1+
+        where SM_LOG writes in parallel with other modules.
+        """
+        cursor = self.memory._conn.execute("PRAGMA journal_mode")
+        row = cursor.fetchone()
+        self.assertEqual(row[0], "wal")
+
+    def test_schema_version_is_zero(self):
+        """
+        Scenario: EL_MEM initializes for the first time.
+        Expected: schema_version table contains version 0 (Stage 0 schema).
+        This version number must be incremented when new tables are added
+        in Stage 1+ to enable safe schema migrations.
+        """
+        version = self.memory.get_schema_version()
+        self.assertEqual(version, 0)
+
+    def test_schema_version_matches_class_constant(self):
+        """
+        Scenario: Installed schema version matches the declared constant.
+        Expected: get_schema_version() == ELMem.SCHEMA_VERSION.
+        Guards against accidental constant/migration mismatch.
+        """
+        self.assertEqual(
+            self.memory.get_schema_version(),
+            ELMem.SCHEMA_VERSION
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
