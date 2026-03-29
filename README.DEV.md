@@ -116,8 +116,8 @@ Governance requires memory.
 If state is not reliable, decisions are meaningless.
 
 **MVP scope**
-- SQLite.
-- Minimal schema.
+- SQLite with WAL mode enabled.
+- Minimal schema with version tracking.
 - Simple CRUD operations.
 - No caching layers.
 
@@ -148,15 +148,51 @@ Once the skeleton is stable, the system can interact.
 ### 4. SM_LOG — Observability
 
 **Role**
-- Structured logging.
+- Structured logging with correlation IDs.
 - Correlation of messages and decisions.
+- Minimal memory buffer active from boot.
 
-**Why**
+**Why first in Stage 1**
+SM_LOG must be initialized before all other operational modules.  
+SM_OS and SM_GSM generate critical events at startup — if SM_LOG
+is not ready, these events are lost silently.  
 If behavior cannot be observed, it cannot be governed.
+
+**Stage 1 scope**
+- JSONL structured logs.
+- In-memory circular buffer (fallback if SQLite not ready).
+- Basic log levels: debug, info, warning, error, critical.
+- No pattern analysis yet (Stage 2).
 
 ---
 
-### 5. SM_DLG — Dialogue Engine
+### 5. SM_GSM — Global Stability Manager
+
+**Role**
+- Accepts and logs system alerts.
+- Applies default governance policy.
+- Foundation for full governance in Stage 2.
+
+**Why**
+SM_DLG and EL_IFC generate alerts that need an arbiter.  
+Without SM_GSM, critical events are silently ignored.
+
+**Stage 1 scope (minimal)**
+- Alert reception and logging to SM_LOG only.
+- Default policy: always maintain INTERACTIVE mode.
+- No automatic restart logic.
+- No automatic mode transitions.
+- No watchdog mechanism.
+
+**Stage 2 will add**
+- Automatic mode transitions (MAINTENANCE, DEGRADED).
+- Module restart decisions.
+- Full watchdog mechanism.
+- SM_GSM self-monitoring.
+
+---
+
+### 6. SM_DLG — Dialogue Engine
 
 **Role**
 - Deterministic response generation.
@@ -166,9 +202,15 @@ If behavior cannot be observed, it cannot be governed.
 **Why**
 Allows end-to-end execution testing without AI risk.
 
+**Stage 1 scope**
+- Template-based responses only.
+- FSM (Finite State Machine) dialogue states.
+- No EL_CRN calls.
+- Fallback to symbolic response if any component unavailable.
+
 ---
 
-### 6. EL_IFC — Interface Layer
+### 7. EL_IFC — Interface Layer
 
 **Role**
 - CLI or minimal interface.
@@ -177,17 +219,23 @@ Allows end-to-end execution testing without AI risk.
 **Why**
 Provides a human test surface for validation.
 
+**Stage 1 scope**
+- CLI only (no web, no vocal).
+- Basic admission control (max concurrent requests).
+- Input/output display only.
+- No admin dashboard yet.
+
 ---
 
 ## 7. Stage 2 — Governance
 
 Only after the system is stable and observable do we introduce governance logic.
 
-### 7. SM_SGA — Neural Eligibility Decision
+### 8. SM_SGA — Neural Eligibility Decision
 
 **Role**
 - Decide whether neural inference is allowed.
-- Binary or simple scoring logic.
+- Binary scoring logic with hysteresis.
 
 **Important**
 SM_SGA does NOT generate intelligence.  
@@ -195,9 +243,14 @@ It only authorizes or denies neural execution.
 
 This enforces architectural authority separation.
 
+**Hysteresis thresholds**
+- Neural activation: composite score ≥ 75
+- Neural deactivation: composite score < 65
+- Margin: 10 points (prevents oscillation under variable CPU load)
+
 ---
 
-### 8. SM_VAL — Validation Layer (Optional Extension)
+### 9. SM_VAL — Validation Layer (Optional Extension)
 
 **Role**
 - Input validation rules.
@@ -207,7 +260,7 @@ This enforces architectural authority separation.
 
 ## 8. Stage 3 — Neural Capability (Optional)
 
-### 9. EL_CRN — Neural Core
+### 10. EL_CRN — Neural Core
 
 **Role**
 - Neural inference execution.
@@ -218,6 +271,7 @@ This enforces architectural authority separation.
 - CPU execution.
 - Immediate fallback on failure.
 - Neural output never bypasses symbolic control.
+- Cooperative interruption mechanism (abort_inference flag).
 
 Neural intelligence enters as a guest, not a ruler.
 
@@ -229,11 +283,12 @@ Neural intelligence enters as a guest, not a ruler.
 2. EL_MEM
 3. SM_SYN
 4. SM_LOG
-5. SM_DLG
-6. EL_IFC
-7. SM_SGA
-8. SM_VAL (optional)
-9. EL_CRN (optional)
+5. SM_GSM
+6. SM_DLG
+7. EL_IFC
+8. SM_SGA
+9. SM_VAL (optional)
+10. EL_CRN (optional)
 
 This order is intentional and non-negotiable for architectural integrity.
 
@@ -281,11 +336,14 @@ This project is not optimized for rapid demo creation.
 
 ## 13. Status
 
-This repository currently contains architecture and early scaffolding only.
-
-**Stage 0 skeleton is now available in `/stage0`.**
-It includes SM_HUB, EL_MEM, and SM_SYN — no neural processing, by design.
+**Stage 0 — Complete ✓**  
+Includes SM_HUB, EL_MEM, SM_SYN, and WarmupPolicy.  
+47 automated tests passing. CI green on every commit.  
 Run with: `python stage0/main.py` (no dependencies required, Python 3.8+)
+
+**Stage 1 — In preparation**  
+Next: SM_LOG, SM_GSM, SM_DLG, EL_IFC.  
+See open issues for contribution opportunities.
 
 ---
 
