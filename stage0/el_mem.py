@@ -16,20 +16,49 @@ class ELMem:
     - Provide atomic read/write operations.
     - Serve as the audit trail foundation.
 
-    MVP scope: SQLite, minimal schema, simple CRUD.
+    MVP scope: SQLite with WAL mode, minimal schema with version tracking.
     No caching, no encryption, no replication.
+
+    ARCHITECTURAL DECISIONS:
+    - WAL mode: enabled for concurrent reads during writes (EL-ARCH lines 753/784).
+      Required for Stage 1+ where SM_LOG writes in parallel with other modules.
+    - Schema versioning: tracks installed schema version for safe future migrations.
+      New tables added in Stage 1+ must increment SCHEMA_VERSION.
     """
+
+    # Current schema version — increment when adding or modifying tables
+    SCHEMA_VERSION = 0
 
     def __init__(self, db_path: str = "elia.db"):
         self._db_path = db_path
         self._conn = sqlite3.connect(db_path, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
+
+        # Enable WAL mode for concurrent read/write access
+        # Required by EL-ARCH spec (lines 753, 784) and Stage 1 parallel writes
+        self._conn.execute("PRAGMA journal_mode=WAL")
+        self._conn.execute("PRAGMA synchronous=NORMAL")
+
         self._init_schema()
         print(f"[EL_MEM] Initialized. Database: {db_path}")
 
     def _init_schema(self):
         """Create tables if they do not exist."""
         cursor = self._conn.cursor()
+
+        # Schema version tracking — single source of truth for migration state
+        # Increment SCHEMA_VERSION when adding or modifying tables in future stages
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS schema_version (
+                version     INTEGER PRIMARY KEY,
+                applied_at  TEXT NOT NULL,
+                description TEXT NOT NULL
+            )
+        """)
+        cursor.execute("""
+            INSERT OR IGNORE INTO schema_version (version, applied_at, description)
+            VALUES (?, ?, 'Stage 0 — initial schema')
+        """, (self.SCHEMA_VERSION, datetime.now(timezone.utc).isoformat()))
 
         # Key-value store for system state flags
         cursor.execute("""
@@ -53,6 +82,17 @@ class ELMem:
 
         self._conn.commit()
         print("[EL_MEM] Schema ready.")
+
+    def get_schema_version(self) -> int:
+        """Return the current installed schema version."""
+        try:
+            cursor = self._conn.execute(
+                "SELECT MAX(version) as version FROM schema_version"
+            )
+            row = cursor.fetchone()
+            return row["version"] if row and row["version"] is not None else 0
+        except Exception:
+            return 0
 
     def atomic_write(self, key: str, value) -> bool:
         """Write or update a key in the system state store."""
