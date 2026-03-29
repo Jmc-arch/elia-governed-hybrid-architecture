@@ -228,9 +228,9 @@ Neural intelligence enters as a guest, not a ruler.
 1. SM_HUB
 2. EL_MEM
 3. SM_SYN
-4. SM_DLG
-5. EL_IFC
-6. SM_LOG
+4. SM_LOG
+5. SM_DLG
+6. EL_IFC
 7. SM_SGA
 8. SM_VAL (optional)
 9. EL_CRN (optional)
