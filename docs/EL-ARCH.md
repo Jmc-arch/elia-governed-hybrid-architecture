@@ -1141,7 +1141,7 @@ Exit from this phase occurs when one of the following conditions is met: 8 evalu
 
 Strict conditions to authorize short-circuit (all required simultaneously):
 
-1. **Restored State Freshness**: Saved state dates less than 24 hours.
+1. **Restored State Freshness**: Saved state dates less than 12 hours.
 2. **Historical Stability**: Saved Stability_Index ≥ 75 (stable system at save time).
 3. **No Active Alerts**: No critical or warning alert active in SM_LOG at restoration time.
 4. **Environmental Consistency**: Detected profile at restart identical to saved one:
