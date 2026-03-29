@@ -145,7 +145,18 @@ Enforces deterministic execution flow.
 
 Once the skeleton is stable, the system can interact.
 
-### 4. SM_DLG — Dialogue Engine
+### 4. SM_LOG — Observability
+
+**Role**
+- Structured logging.
+- Correlation of messages and decisions.
+
+**Why**
+If behavior cannot be observed, it cannot be governed.
+
+---
+
+### 5. SM_DLG — Dialogue Engine
 
 **Role**
 - Deterministic response generation.
@@ -157,7 +168,7 @@ Allows end-to-end execution testing without AI risk.
 
 ---
 
-### 5. EL_IFC — Interface Layer
+### 6. EL_IFC — Interface Layer
 
 **Role**
 - CLI or minimal interface.
@@ -165,17 +176,6 @@ Allows end-to-end execution testing without AI risk.
 
 **Why**
 Provides a human test surface for validation.
-
----
-
-### 6. SM_LOG — Observability
-
-**Role**
-- Structured logging.
-- Correlation of messages and decisions.
-
-**Why**
-If behavior cannot be observed, it cannot be governed.
 
 ---
 
