@@ -221,7 +221,7 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 
 **Anti-Deadlock Guarantees**: EL_MEM has no reference to SM_SYN or other modules.
 - SM_SYN holds references to EL_MEM but always releases coordination locks before outgoing calls to SM_HUB or acquisition of the finalization lock.
-- Mandatory timeout on all locks (30 seconds by default).
+- Mandatory timeout on locks — coordination: 500ms, finalization: 2 seconds, global fallback: 10 seconds.
 - If timeout reached, forced release with critical alert in SM_LOG.
 - Cycle detection: SM_SYN maintains a lock acquisition graph in memory. Before each acquisition, check for absence of potential cycle.
 - Preemptive rejection if cycle detected.
@@ -627,8 +627,8 @@ Explicit reason logged.
 **Level 2 - Composite Evaluation with Hysteresis:**
 Calculate composite score: 0.5 × validation + 0.3 × performance + 0.2 × stability.
 Adaptive thresholds according to current state:
-- If neural_processing = False: activation if score ≥ 72
-- If neural_processing = True: deactivation if score < 68
+- If neural_processing = False: activation if score ≥ 75
+- If neural_processing = True: deactivation if score < 65
 
 The 4-point margin prevents oscillations due to normal fluctuations.
 **Level 3 - Default Conservatism:**
@@ -637,14 +637,14 @@ If incomplete data, neural deactivation and monitoring score set to 50.
 - VETO_VALIDATION: Validation score < 60 (Level 1)
 - VETO_STABILITY: Stability score < 40 (Level 1)
 - VETO_OS_NOISE: Cycle invalidated by SM_OS (Level 1)
-- COMPOSITE_ACTIVATED: Composite score ≥ 72 and previous state False (Level 2)
-- COMPOSITE_DEACTIVATED: Composite score < 68 and previous state True (Level 2)
-- HYSTERESIS_STABLE: Composite score between 68 and 72, conservation of current state (Level 2)
+- COMPOSITE_ACTIVATED: Composite score ≥ 75 and previous state False (Level 2)
+- COMPOSITE_DEACTIVATED: Composite score < 65 and previous state True (Level 2)
+- HYSTERESIS_STABLE: Composite score between 65 and 75, conservation of current state (Level 2)
 - INSUFFICIENT_DATA: Incomplete metrics, deactivation for safety (Level 3)
 
 **Associated Confidence Levels:**
-- "High" confidence: Vetos (Level 1) or composite score outside hysteresis zone (< 68 or ≥ 72)
-- "Medium" confidence: Composite score in hysteresis zone (68-72), state conserved
+- "High" confidence: Vetos (Level 1) or composite score outside hysteresis zone (< 65 or ≥ 75)
+- "Medium" confidence: Composite score in hysteresis zone (65-75), state conserved
 - "Low" confidence: Incomplete data (Level 3)
 **Numerical Global_Score (Monitoring Only)**:
 This score is a composite metric exclusively intended for dashboards and history.
@@ -1128,7 +1128,8 @@ The system starts in two distinct sub-phases:
 3. EL_MEM: SQLite WAL mounting + integrity check (1400ms)
 4. SM_SYN: EL_MEM accessibility check via test read attempts (maximum 15s with exponential backoff).
 If failure: immediate shutdown error code "STORAGE_UNREACHABLE".
-5. Operational modules: SM_CFG, SM_OS, SM_GSM, SM_LOG, EL_IFC (total ~1000ms)
+5. SM_LOG: Minimal memory buffer initialization (logging active immediately)
+6. Operational modules: SM_CFG, SM_OS, SM_GSM, EL_IFC (total ~1000ms)
 **Pre-flight Check**: Imperative validation of EL_MEM physical accessibility (disk/socket mount) before effective SM_SYN launch.
 If failure, immediate shutdown with critical error code.
 Persistent state restoration if available (configuration, stable Global_Score, resilience state).
