@@ -723,7 +723,7 @@ Contract: Return: float.
 
 **Heartbeat Implementation**: Separate non-blocking thread launched via recursive `threading.Timer`.
 If sending fails (SM_SYN temporarily unavailable), retry attempt after 2 seconds (maximum 3 attempts).
-If 3 attempts fail, heartbeat marked as "failed" but request processing continues normally.
+If 3 attempts fail, heartbeat marked as "failed". The admission slot is released automatically. The request is abandoned gracefully — processing cannot continue without SM_SYN.
 The 30-second timeout on SM_SYN side remains unchanged.
 
 3. SM_SYN monitors heartbeats: if no ping received for 30 seconds for a given `request_id`, slot automatically released
