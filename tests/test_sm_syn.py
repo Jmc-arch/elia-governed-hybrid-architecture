@@ -6,10 +6,12 @@ import unittest
 from unittest.mock import MagicMock
 import tempfile
 
+# Ajoute la racine du projet au PYTHONPATH (solution robuste)
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+# Imports corrects selon ta structure actuelle
 from stage1.sm_syn import SMSyn
-from stage1.el_mem import ELMem
+from stage0.el_mem import ELMem   # ELMem est bien dans stage0
 
 
 class TestSMSyn(unittest.TestCase):
