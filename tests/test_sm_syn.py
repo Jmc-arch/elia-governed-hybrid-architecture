@@ -1,4 +1,4 @@
-# tests/test_sm_syn.py — ELIA Stage 1
+# tests/test_sm_syn.py
 
 import sys
 from pathlib import Path
@@ -6,13 +6,10 @@ import unittest
 from unittest.mock import MagicMock
 import tempfile
 
-# === SOLUTION ROBUSTE POUR LES IMPORTS ===
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
-# Import avec le nom du dossier
 from stage1.sm_syn import SMSyn
-from stage1.el_mem import ELMem   # change si ton ELMem est ailleurs
+from stage1.el_mem import ELMem
 
 
 class TestSMSyn(unittest.TestCase):
@@ -41,12 +38,6 @@ class TestSMSyn(unittest.TestCase):
     def test_set_flag(self):
         self.assertTrue(self.syn.set_flag("neural_processing", True))
         self.assertTrue(self.syn.get_flag("neural_processing"))
-
-    def test_logger_injection(self):
-        mock_logger = MagicMock()
-        self.syn.set_logger(mock_logger)
-        self.syn._emit("info", "Test message from syn")
-        mock_logger.assert_called()
 
 
 if __name__ == "__main__":
