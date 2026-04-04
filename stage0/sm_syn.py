@@ -41,7 +41,7 @@ class SMSyn:
             "neural_processing": False,
             "learning_enabled": False,
         }
-        self._logger: Optional[Callable] = None          # Will be set to sm_log.log_system in Stage 1
+        self._logger: Optional[Callable] = None
 
         # Persist initial state (Option B - Pessimistic)
         if not self._memory.atomic_write("system_state", self._state):
@@ -52,9 +52,6 @@ class SMSyn:
 
         self._emit("info", "SM_SYN initialized.")
 
-    # ----------------------------------------------------------------
-    # Logging abstraction (Stage 0 → Stage 1 bridge)
-    # ----------------------------------------------------------------
     def set_logger(self, logger: Callable) -> None:
         """Inject SM_LOG after initialization (Stage 1)."""
         self._logger = logger
@@ -67,22 +64,16 @@ class SMSyn:
                 self._logger(
                     source="SM_SYN",
                     message=message,
-                    level=level,           # Compatibilité avec log_system
+                    level=level,
                     data=data or {},
                 )
             else:
                 print(f"[SM_SYN] {level.upper()} | {message}")
         except Exception:
-            print(f"[SM_SYN] {message}")   # ultimate fallback
+            print(f"[SM_SYN] {message}")
 
-    # ----------------------------------------------------------------
-    # Public storage interface — EL-ARCH rule "ALWAYS via SM_SYN"
-    # ----------------------------------------------------------------
     def log_event(self, source: str, topic: str, payload: dict) -> bool:
-        """
-        Public method used by SM_LOG (and future modules).
-        Orchestrates Coordination Zone + persistence.
-        """
+        """Public method used by SM_LOG (and future modules)."""
         with self._lock:
             try:
                 success = self._memory.log_event(
@@ -97,9 +88,6 @@ class SMSyn:
                 self._emit("error", f"Exception in log_event: {e}", {"topic": topic})
                 return False
 
-    # ----------------------------------------------------------------
-    # State & Flag management (Option B - Pessimistic)
-    # ----------------------------------------------------------------
     def get_state(self) -> str:
         return self._state
 
@@ -123,16 +111,19 @@ class SMSyn:
 
             self._state = new_state
 
-            # Best-effort logging of transition
-            self.log_event(
-                source="SM_SYN",
-                topic="state_transition",
-                payload={
-                    "from": previous,
-                    "to": new_state,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                }
-            )
+            # FIX DEADLOCK: direct call to _memory (we already hold the lock)
+            try:
+                self._memory.log_event(
+                    source="SM_SYN",
+                    topic="state_transition",
+                    payload={
+                        "from": previous,
+                        "to": new_state,
+                        "timestamp": datetime.now(timezone.utc).isoformat(),
+                    }
+                )
+            except Exception:
+                pass  # best-effort
 
             self._emit("info", f"State transition: {previous} → {new_state}")
             return True
@@ -152,6 +143,17 @@ class SMSyn:
                 return False
 
             self._flags[key] = value
+
+            # FIX DEADLOCK: direct call to _memory (we already hold the lock)
+            try:
+                self._memory.log_event(
+                    source="SM_SYN",
+                    topic="flag_update",
+                    payload={"key": key, "value": value}
+                )
+            except Exception:
+                pass
+
             self._emit("info", f"Flag updated: {key} = {value}")
             return True
 
