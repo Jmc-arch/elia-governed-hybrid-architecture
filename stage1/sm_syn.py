@@ -11,9 +11,9 @@ from datetime import datetime, timezone
 from typing import Callable, Optional
 
 try:
-    from .el_mem import ELMem
-except ImportError:  # pragma: no cover
-    from el_mem import ELMem
+    from stage0.el_mem import ELMem
+except ImportError:  
+    from stage0.el_mem import ELMem
 
 
 VALID_STATES = {"INIT", "STABILIZING", "INTERACTIVE", "MAINTENANCE", "SHUTDOWN"}
