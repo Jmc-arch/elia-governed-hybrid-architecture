@@ -1,5 +1,5 @@
 # tests/test_sm_log.py — ELIA Stage 1
-# Unit tests for the Unified Logging System (SM_LOG)
+# Unit tests for SM_LOG
 
 import sys
 from pathlib import Path
@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import MagicMock
 import asyncio
 
-# === IMPORTANT: Ajoute la racine du projet au PYTHONPATH ===
+# Ajoute la racine du projet au PYTHONPATH
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from stage1.sm_log import SMLog, LogType, LogLevel
@@ -20,13 +20,11 @@ class TestSMLog(unittest.TestCase):
 
         self.sm_log = SMLog(syn=self.mock_syn)
 
-        # Nettoyage des buffers avant chaque test
         self.sm_log._buffer.clear()
         self.sm_log._active_alerts.clear()
         self.sm_log._satisfaction_history.clear()
 
     async def test_log_basic_entry(self):
-        """Test basique de logging"""
         cid = await self.sm_log.log(
             log_type=LogType.SYSTEM,
             source="TEST_MODULE",
@@ -40,7 +38,6 @@ class TestSMLog(unittest.TestCase):
         self.mock_syn.log_event.assert_called_once()
 
     def test_convenience_methods(self):
-        """Test des méthodes de convenance"""
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
@@ -53,7 +50,6 @@ class TestSMLog(unittest.TestCase):
         loop.close()
 
     async def test_log_feedback_and_satisfaction(self):
-        """Feedback doit mettre à jour l'historique de satisfaction"""
         await self.sm_log.log_feedback(user_id="user123", value=0.9, context={})
         await self.sm_log.log_feedback(user_id="user123", value=0.3, context={})
 
@@ -61,7 +57,6 @@ class TestSMLog(unittest.TestCase):
         self.assertAlmostEqual(status["average_last_10"], 0.6, places=2)
 
     async def test_satisfaction_alert_triggers(self):
-        """Alert doit se déclencher quand la moyenne est < 0.4"""
         for _ in range(12):
             await self.sm_log.log_feedback(user_id="user123", value=0.35, context={})
 
@@ -69,7 +64,6 @@ class TestSMLog(unittest.TestCase):
         self.assertTrue(status["alert_active"])
 
     async def test_receive_log_event_from_hub(self):
-        """Doit gérer correctement les événements venant de SM_HUB"""
         event = {
             "log_type": "system",
             "source": "SM_HUB",
@@ -82,7 +76,6 @@ class TestSMLog(unittest.TestCase):
         self.assertEqual(len(self.sm_log._buffer), 1)
 
     def test_health_metrics(self):
-        """Les métriques de santé doivent être correctes"""
         metrics = self.sm_log.get_health_metrics()
         self.assertEqual(metrics["buffer_capacity"], 1000)
 
