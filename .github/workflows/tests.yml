@@ -1,4 +1,4 @@
-name: ELIA Stage 0 — Tests
+name: ELIA Tests (Stage 0 + Stage 1)
 
 on:
   push:
@@ -21,4 +21,8 @@ jobs:
 
       - name: Run all tests
         run: |
+          # Ajoute la racine du projet au PYTHONPATH pour que les imports stage1/ et stage0/ fonctionnent
+          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          echo "PYTHONPATH set to: ${PYTHONPATH}"
+
           python -m unittest discover -s tests -v
