@@ -1,5 +1,4 @@
 # tests/test_sm_log.py — ELIA Stage 1
-# Unit tests for SM_LOG
 
 import sys
 from pathlib import Path
@@ -7,8 +6,8 @@ import unittest
 from unittest.mock import MagicMock
 import asyncio
 
-# Ajoute la racine du projet au PYTHONPATH
-sys.path.insert(0, str(Path(__file__).parent.parent))
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
 from stage1.sm_log import SMLog, LogType, LogLevel
 
