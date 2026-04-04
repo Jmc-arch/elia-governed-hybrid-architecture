@@ -1,5 +1,4 @@
 # tests/test_sm_syn.py — ELIA Stage 1
-# Unit tests for SM_SYN
 
 import sys
 from pathlib import Path
@@ -7,11 +6,13 @@ import unittest
 from unittest.mock import MagicMock
 import tempfile
 
-# Ajoute la racine du projet au PYTHONPATH
-sys.path.insert(0, str(Path(__file__).parent.parent))
+# === SOLUTION ROBUSTE POUR LES IMPORTS ===
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
 
+# Import avec le nom du dossier
 from stage1.sm_syn import SMSyn
-from stage1.el_mem import ELMem   # ajuste si ELMem est dans un autre dossier
+from stage1.el_mem import ELMem   # change si ton ELMem est ailleurs
 
 
 class TestSMSyn(unittest.TestCase):
