@@ -1,4 +1,5 @@
 # tests/test_sm_log.py — ELIA Stage 1
+# Tests corrects pour les méthodes asynchrones
 
 import sys
 from pathlib import Path
@@ -6,47 +7,44 @@ import unittest
 from unittest.mock import MagicMock
 import asyncio
 
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Ajoute la racine au PYTHONPATH
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from stage1.sm_log import SMLog, LogType, LogLevel
 
 
-class TestSMLog(unittest.TestCase):
+# === SOLUTION : Utiliser IsolatedAsyncioTestCase ===
+class TestSMLog(unittest.IsolatedAsyncioTestCase):
+
     def setUp(self):
         self.mock_syn = MagicMock()
         self.mock_syn.log_event.return_value = True
-
         self.sm_log = SMLog(syn=self.mock_syn)
 
         self.sm_log._buffer.clear()
         self.sm_log._active_alerts.clear()
         self.sm_log._satisfaction_history.clear()
 
+    # Tous les tests async sont maintenant correctement exécutés
     async def test_log_basic_entry(self):
         cid = await self.sm_log.log(
             log_type=LogType.SYSTEM,
-            source="TEST_MODULE",
-            message="This is a test log message",
+            source="TEST",
+            message="Test message",
             level=LogLevel.INFO,
             data={"key": "value"}
         )
-
         self.assertIsNotNone(cid)
         self.assertEqual(len(self.sm_log._buffer), 1)
         self.mock_syn.log_event.assert_called_once()
 
-    def test_convenience_methods(self):
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-
-        loop.run_until_complete(self.sm_log.log_system("TEST", "System event"))
-        loop.run_until_complete(self.sm_log.log_warning("TEST", "Warning message"))
-        loop.run_until_complete(self.sm_log.log_error("TEST", "Error occurred"))
-        loop.run_until_complete(self.sm_log.log_critical("TEST", "Critical failure"))
+    async def test_convenience_methods(self):
+        await self.sm_log.log_system("TEST", "System event")
+        await self.sm_log.log_warning("TEST", "Warning")
+        await self.sm_log.log_error("TEST", "Error")
+        await self.sm_log.log_critical("TEST", "Critical")
 
         self.assertGreaterEqual(len(self.sm_log._buffer), 4)
-        loop.close()
 
     async def test_log_feedback_and_satisfaction(self):
         await self.sm_log.log_feedback(user_id="user123", value=0.9, context={})
