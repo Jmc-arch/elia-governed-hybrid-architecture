@@ -19,10 +19,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Run all tests
+      - name: Run tests
         run: |
-          # Ajoute la racine du projet au PYTHONPATH pour que les imports stage1/ et stage0/ fonctionnent
+          # Ajoute la racine du projet au PYTHONPATH
           export PYTHONPATH=$PYTHONPATH:$(pwd)
-          echo "PYTHONPATH set to: ${PYTHONPATH}"
+          echo "PYTHONPATH = ${PYTHONPATH}"
 
+          # Lance tous les tests
           python -m unittest discover -s tests -v
