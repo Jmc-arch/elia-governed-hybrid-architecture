@@ -21,7 +21,11 @@ jobs:
 
       - name: Run tests
         run: |
+          # Ajoute la racine du projet au PYTHONPATH (obligatoire pour stage1/ et stage0/)
           export PYTHONPATH=$PYTHONPATH:$(pwd)
           echo "PYTHONPATH = ${PYTHONPATH}"
 
-          python -m unittest discover -s tests -v
+          # -s tests  = dossier des tests
+          # -t .      = racine du projet comme top-level directory (corrige les imports stage1.xxx)
+          # -v        = verbose
+          python -m unittest discover -s tests -t . -v
