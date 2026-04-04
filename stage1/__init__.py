@@ -1,1 +1,1 @@
-"""Stage 1 reference implementation for ELIA — Symbolic Interaction."""
+"""Stage 1 reference implementation for ELIA."""
