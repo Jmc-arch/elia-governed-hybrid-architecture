@@ -1,19 +1,16 @@
 # sm_log.py — ELIA Stage 1
-# Unified logging system: structured logging, correlation, audit trail.
-# First module initialized in Stage 1 — must be active before all others.
+# Unified Logging System — MUST be initialized before other modules.
 #
 # ARCHITECTURAL DECISIONS:
-# - Storage ALWAYS via SM_SYN (EL-ARCH rule, line 821: "Write and read: ALWAYS via SM_SYN").
-#   SM_SYN is the unique entry point to EL_MEM — never bypass it.
-#   (Corrected after Grok audit — previous version violated this rule)
-# - All SM_SYN calls use asyncio.to_thread() to avoid blocking the event loop.
+# - Storage ALWAYS via SM_SYN.log_event() (EL-ARCH rule line 821).
+#   Never accesses EL_MEM directly or via private attributes.
+# - All SM_SYN calls use asyncio.to_thread() — never blocks event loop.
 #   (Fixes Gemini audit point 1 — asyncio vs blocking)
 # - In-memory circular buffer as fallback if SM_SYN is not yet ready.
-# - Correlation IDs propagated on every log entry for full auditability.
 # - SM_LOG never controls operational flags — observability only.
+# - receive_log_event() exposes SM_HUB integration point (EL-ARCH).
 
 import asyncio
-import json
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -47,45 +44,6 @@ class LogLevel(str, Enum):
 
 
 # ----------------------------------------------------------------
-# Log entry
-# ----------------------------------------------------------------
-
-class LogEntry:
-    """Standard log entry format for all SM_LOG records."""
-
-    def __init__(
-        self,
-        log_type: LogType,
-        source: str,
-        level: LogLevel,
-        message: str,
-        data: dict,
-        correlation_id: Optional[str] = None,
-    ):
-        self.log_type = log_type
-        self.source = source
-        self.level = level
-        self.message = message
-        self.data = data
-        self.correlation_id = correlation_id or str(uuid.uuid4())
-        self.timestamp = datetime.now(timezone.utc).isoformat()
-
-    def to_dict(self) -> dict:
-        return {
-            "log_type": self.log_type.value,
-            "source": self.source,
-            "level": self.level.value,
-            "message": self.message,
-            "data": self.data,
-            "correlation_id": self.correlation_id,
-            "timestamp": self.timestamp,
-        }
-
-    def to_jsonl(self) -> str:
-        return json.dumps(self.to_dict())
-
-
-# ----------------------------------------------------------------
 # SM_LOG — Unified Logging System
 # ----------------------------------------------------------------
 
@@ -96,29 +54,26 @@ class SMLog:
     Responsibilities:
     - Structured logging with correlation IDs.
     - In-memory circular buffer (fallback if SM_SYN not ready).
-    - Persistent storage via SM_SYN (the ONLY entry point to EL_MEM).
-    - Basic alert tracking for SM_GSM consumption.
+    - Persistent storage via SM_SYN.log_event() — never EL_MEM directly.
+    - Alert accumulation for SM_GSM consumption.
+    - SM_HUB integration via receive_log_event().
 
     Storage rule (EL-ARCH line 821):
         "Write and read: ALWAYS via SM_SYN (security, consistency, atomicity)."
-    SM_LOG never calls EL_MEM directly.
 
     Stage 1 scope:
     - JSONL structured logs persisted via SM_SYN.
     - In-memory circular buffer (max 1000 entries).
     - Log levels: debug, info, warning, error, critical.
-    - Alert accumulation for SM_GSM consumption.
-    - No pattern analysis yet (Stage 2).
+    - Alert tracking for SM_GSM.
+    - No Pydantic yet (Stage 2).
     - No psutil metrics yet (Stage 2).
+    - No loguru yet (Stage 2) — _emit() uses print() as interim.
 
-    CRITICAL: All SM_SYN calls are non-blocking (asyncio.to_thread).
-    SM_LOG never controls operational flags — observability only.
+    CRITICAL: SM_LOG never controls operational flags — observability only.
     """
 
-    # In-memory buffer capacity
     BUFFER_MAX_SIZE = 1000
-
-    # Alert thresholds (EL-ARCH)
     SATISFACTION_ALERT_THRESHOLD = 0.4
     SATISFACTION_ALERT_CYCLES = 10
 
@@ -132,7 +87,18 @@ class SMLog:
         self._active_alerts: list = []
         self._satisfaction_history: deque = deque(maxlen=self.SATISFACTION_ALERT_CYCLES)
         self._lock = asyncio.Lock()
-        print("[SM_LOG] Initialized. Memory buffer active.")
+        self._emit("info", "SM_LOG initialized. Memory buffer active.")
+
+    # ----------------------------------------------------------------
+    # Console output — interim until loguru (Stage 2)
+    # ----------------------------------------------------------------
+
+    def _emit(self, level: str, message: str) -> None:
+        """
+        Temporary console output.
+        Will be replaced by loguru with enqueue=True in Stage 2.
+        """
+        print(f"[SM_LOG] {level.upper()} | {message}")
 
     # ----------------------------------------------------------------
     # Core logging interface
@@ -152,42 +118,41 @@ class SMLog:
         Returns the correlation_id for traceability.
 
         Storage: via SM_SYN.log_event() — never directly to EL_MEM.
-        Non-blocking: SM_SYN call runs in a thread pool.
+        Non-blocking: SM_SYN call runs in a thread pool (asyncio.to_thread).
         """
-        entry = LogEntry(
-            log_type=log_type,
-            source=source,
-            level=level,
-            message=message,
-            data=data or {},
-            correlation_id=correlation_id,
-        )
+        entry = {
+            "log_type": log_type.value,
+            "source": source,
+            "level": level.value,
+            "message": message,
+            "data": data or {},
+            "correlation_id": correlation_id or str(uuid.uuid4()),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
 
         async with self._lock:
             # Always write to in-memory buffer first (instant, never fails)
-            self._buffer.append(entry.to_dict())
+            self._buffer.append(entry)
 
             # Persist via SM_SYN — respects EL-ARCH rule line 821
-            # asyncio.to_thread() prevents blocking the event loop (Gemini fix)
-            await asyncio.to_thread(
-                self._syn._memory.log_event,
-                source=source,
-                topic=f"log.{log_type.value}",
-                payload=entry.to_dict(),
-            )
+            # asyncio.to_thread() prevents blocking the event loop
+            try:
+                await asyncio.to_thread(
+                    self._syn.log_event,
+                    source=source,
+                    topic=f"log.{log_type.value}",
+                    payload=entry,
+                )
+            except Exception as e:
+                # Buffer write succeeded — persistence failure is non-fatal
+                self._emit("warning", f"Failed to persist log via SM_SYN: {e}")
 
-        # Console output for Stage 1 visibility
-        # Will be replaced by admin dashboard in Stage 2
-        level_prefix = {
-            LogLevel.DEBUG:    "[DEBUG]",
-            LogLevel.INFO:     "[INFO ]",
-            LogLevel.WARNING:  "[WARN ]",
-            LogLevel.ERROR:    "[ERROR]",
-            LogLevel.CRITICAL: "[CRIT ]",
-        }.get(level, "[INFO ]")
-        print(f"[SM_LOG] {level_prefix} {source} | {message}")
+        self._emit(level.value, f"{source} | {message}")
+        return entry["correlation_id"]
 
-        return entry.correlation_id
+    # ----------------------------------------------------------------
+    # Convenience methods
+    # ----------------------------------------------------------------
 
     async def log_system(
         self,
@@ -295,6 +260,32 @@ class SMLog:
         async with self._lock:
             self._satisfaction_history.append(value)
         return correlation_id
+
+    # ----------------------------------------------------------------
+    # SM_HUB integration — EL-ARCH interface
+    # ----------------------------------------------------------------
+
+    async def receive_log_event(self, event: dict) -> None:
+        """
+        Entry point when log event arrives via SM_HUB.
+        EL-ARCH defines this as the standard SM_HUB → SM_LOG interface.
+        """
+        try:
+            await self.log(
+                log_type=LogType(event.get("log_type", "system")),
+                source=event.get("source", "unknown"),
+                message=event.get("message", ""),
+                level=LogLevel(event.get("level", "info")),
+                data=event.get("data"),
+                correlation_id=event.get("correlation_id"),
+            )
+        except (ValueError, KeyError) as e:
+            # Invalid enum value or missing key — log as system warning
+            await self.log_warning(
+                source="SM_LOG",
+                message=f"Invalid log event received via SM_HUB: {e}",
+                data={"raw_event": event},
+            )
 
     # ----------------------------------------------------------------
     # Alert and health interfaces — for SM_GSM consumption
