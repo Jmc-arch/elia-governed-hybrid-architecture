@@ -1,5 +1,5 @@
 # tests/test_sm_syn.py — ELIA Stage 1
-# Unit tests for SM_SYN
+# Unit tests for SM_SYN (state coordination + persistence)
 
 import sys
 from pathlib import Path
@@ -7,10 +7,11 @@ import unittest
 from unittest.mock import MagicMock
 import tempfile
 
+# === IMPORTANT: Ajoute la racine du projet au PYTHONPATH ===
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from stage1.sm_syn import SMSyn
-from stage1.el_mem import ELMem   # Change if your ELMem is in another folder
+from stage1.el_mem import ELMem   # Change le chemin si ELMem est ailleurs
 
 
 class TestSMSyn(unittest.TestCase):
@@ -26,24 +27,29 @@ class TestSMSyn(unittest.TestCase):
         self.temp_dir.cleanup()
 
     def test_initial_state(self):
+        """L'état initial doit être INIT et persisté"""
         self.assertEqual(self.syn.get_state(), "INIT")
 
     def test_valid_transition(self):
+        """Transition valide doit réussir"""
         self.assertTrue(self.syn.transition_to("STABILIZING"))
         self.assertEqual(self.syn.get_state(), "STABILIZING")
 
     def test_invalid_transition(self):
+        """Transition invalide doit être refusée"""
         self.assertFalse(self.syn.transition_to("SHUTDOWN"))
         self.assertEqual(self.syn.get_state(), "INIT")
 
     def test_set_flag(self):
+        """Mise à jour de flag doit fonctionner"""
         self.assertTrue(self.syn.set_flag("neural_processing", True))
         self.assertTrue(self.syn.get_flag("neural_processing"))
 
     def test_logger_injection(self):
+        """Le logger injecté doit être appelé correctement"""
         mock_logger = MagicMock()
         self.syn.set_logger(mock_logger)
-        self.syn._emit("info", "Test message")
+        self.syn._emit("info", "Test message from syn")
         mock_logger.assert_called()
 
 
