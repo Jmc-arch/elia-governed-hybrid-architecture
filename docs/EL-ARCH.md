@@ -1010,7 +1010,7 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 
 **Triggers**: Activation by external requests or `debug_mode = True`.
 
-## EL_QA: Quality and Tests
+## EL_QAT: Quality and Tests
 
 ### SM_TST: Tests and Validation
 **Features**:
