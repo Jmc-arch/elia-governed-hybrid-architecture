@@ -733,7 +733,7 @@ The 30-second timeout on SM_CRD side remains unchanged.
 - In case of EL_ITF crash (OOM, SIGKILL, network loss), slot released in maximum 30 seconds, preventing permanent system blockage.
 - This mechanism is transparent for business code (no explicit call required, managed by internal EL_ITF decorator).
 **Parameters**:
-- `max_concurrent_requests`: 5 by default (adjustable via SM_CFG el_ifc section).
+- `max_concurrent_requests`: 5 by default (adjustable via SM_CFG el_itf section).
 - `rejection_cooldown`: 30 seconds (suggested time before user retry).
 - `critical_mode_threshold`: Compromised system stability (SM_STM) activates preventive rejections.
 **Activation Conditions**: Always active in INTERACTIVE mode.
