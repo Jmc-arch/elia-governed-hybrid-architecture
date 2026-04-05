@@ -117,7 +117,7 @@ The Elia system defines clear performance contracts for each critical component,
 - Availability: 95% (acceptable with fallback)
 - Degraded Behavior: Timeout to symbolic processing
 
-**SM_OIM - Cycle Validation**
+**SM_OSN - Cycle Validation**
 
 - Validation Latency: P95 < 50ms
 - Availability: 100% (assume valid if failure)
@@ -422,10 +422,10 @@ Return: list[LogEntry].
 **Anti-Oscillation Mechanisms**: Hysteresis on all thresholds.
 - Anti-oscillation hysteresis: exit threshold +5 points vs entry threshold (ex: enter STABILIZATION at <70, exit at ≥75).
 **Standardized Interfaces**:
-- `check_system_stability()`: Evaluates global stability using SM_OIM metrics to filter external OS noise.
+- `check_system_stability()`: Evaluates global stability using SM_OSN metrics to filter external OS noise.
 - Provides Stability_Index (0-100), operational score used for mode transition decisions.
 - This score is calculated independently of the Global_Monitoring_Score produced by SM_SGA.
-- Return dict with stable: bool, metrics: dict (including cpu_elia, ram_elia_gb, noise_ratio from SM_OIM), noise_detected: bool.
+- Return dict with stable: bool, metrics: dict (including cpu_elia, ram_elia_gb, noise_ratio from SM_OSN), noise_detected: bool.
 - `trigger_emergency_stop(reason)`: Emergency stop.
 - Contract: reason: str.
 - `get_recovery_strategy()`: Recommended recovery strategy.
@@ -489,7 +489,7 @@ These values apply to the EL_NNC.inference() interface and are propagated via SM
 - MAINTENANCE_OPTIMIZATION mode → complete optimization.
 - Environment detection → adaptation at startup or drift.
 
-### SM_OIM: OS Interference Manager
+### SM_OSN: OS Noise
 **Role**: Monitors and filters external OS noise to isolate Elia-specific metrics.
 - Validation of evaluation cycles to avoid biases due to host interferences.
 **Features**:
@@ -511,7 +511,7 @@ These values apply to the EL_NNC.inference() interface and are propagated via SM
 At startup, before operational stabilization, a 5-minute calibration phase runs:
 Process:
 
-1. SM_OIM runs a light synthetic load (equivalent to 3-5 simulated user requests per minute)
+1. SM_OSN runs a light synthetic load (equivalent to 3-5 simulated user requests per minute)
 2. Continuous noise_ratio measurement every 10 seconds (30 samples)
 3. Calculation of the 95th percentile (P95) of observed noise_ratio
 4. Definition of dynamic threshold = P95 + 20% safety margin
@@ -622,7 +622,7 @@ If deviation > 15% between old and new threshold, notification to SM_STM for val
 **Features**:
 **Binary Neural Activation Decision by Evaluation**:
 **Level 1 - Safety Vetos (Hard Constraints):**
-If validation score < 60, stability < 40, or excessive OS noise (SM_OIM invalidation), activation blocked.
+If validation score < 60, stability < 40, or excessive OS noise (SM_OSN invalidation), activation blocked.
 Explicit reason logged.
 **Level 2 - Composite Evaluation with Hysteresis:**
 Calculate composite score: 0.5 × validation + 0.3 × performance + 0.2 × stability.
@@ -636,7 +636,7 @@ If incomplete data, neural deactivation and monitoring score set to 50.
 **Returned Decision Reasons:**
 - VETO_VALIDATION: Validation score < 60 (Level 1)
 - VETO_STABILITY: Stability score < 40 (Level 1)
-- VETO_OS_NOISE: Cycle invalidated by SM_OIM (Level 1)
+- VETO_OS_NOISE: Cycle invalidated by SM_OSN (Level 1)
 - COMPOSITE_ACTIVATED: Composite score ≥ 75 and previous state False (Level 2)
 - COMPOSITE_DEACTIVATED: Composite score < 65 and previous state True (Level 2)
 - HYSTERESIS_STABLE: Composite score between 65 and 75, conservation of current state (Level 2)
@@ -1044,7 +1044,7 @@ Contract: module_id: str;
 - `cachetools`: Optimized in-memory cache with eviction policies (LRU, TTL) for fast access performance.
 - `platform`: Fine characterization of Linux environment (standard Python library).
 Used by SM_CFG to identify distribution (Ubuntu, Debian, Alpine...), kernel version (cgroups v1/v2 detection), CPU architecture (x86_64, ARM64) and determine containerization via system inspection.
-SM_OIM uses this data to interpret psutil metrics according to isolation context.
+SM_OSN uses this data to interpret psutil metrics according to isolation context.
 
 ### Data & Storage
 
@@ -1099,7 +1099,7 @@ Each request receives a cycle_id marker.
 3. VALIDATING: Check of two conditions:
 
 - Number of completed requests ≥ 3
-- SM_OIM validation (acceptable OS noise)
+- SM_OSN validation (acceptable OS noise)
 
 4. FINALIZED or INVALIDATED according to validation result.
 In-flight requests management:
@@ -1111,7 +1111,7 @@ Guarantee: No user request lost or canceled.
 A cycle in VALIDATING state passes to FINALIZED if and only if:
 
 - Completed requests counter (corresponding cycle_id marker + completed state) reaches at least 3
-- SM_OIM.is_cycle_valid() function returns True (OS noise below profile threshold)
+- SM_OSN.is_cycle_valid() function returns True (OS noise below profile threshold)
 
 Invalidated cycles (either by lack of requests or excessive OS noise) retain the Global_Monitoring_Score of the previous cycle and are recorded in SM_LOG for later analysis, but do not enter trend calculations.
 To guarantee minimal rhythm, a forcing mechanism intervenes every 120 seconds if no cycle has been finalized, independent of requests number.
@@ -1129,7 +1129,7 @@ The system starts in two distinct sub-phases:
 4. SM_CRD: EL_MEM accessibility check via test read attempts (maximum 15s with exponential backoff).
 If failure: immediate shutdown error code "STORAGE_UNREACHABLE".
 5. SM_LOG: Minimal memory buffer initialization (logging active immediately)
-6. Operational modules: SM_CFG, SM_OIM, SM_STM, EL_ITF (total ~1000ms)
+6. Operational modules: SM_CFG, SM_OSN, SM_STM, EL_ITF (total ~1000ms)
 **Pre-flight Check**: Imperative validation of EL_MEM physical accessibility (disk/socket mount) before effective SM_CRD launch.
 If failure, immediate shutdown with critical error code.
 Persistent state restoration if available (configuration, stable Global_Score, resilience state).
@@ -1172,7 +1172,7 @@ Post-short-circuit behavior:
 
 **Hierarchical Execution Order**:
 
-1. **Cycle Validation via SM_OIM**: Query SM_OIM.is_cycle_valid() once per cycle before any costly operation.
+1. **Cycle Validation via SM_OSN**: Query SM_OSN.is_cycle_valid() once per cycle before any costly operation.
 2. **If Invalid Cycle (OS Noise Detected)**:
 
 - Retention of last valid decisional state.
