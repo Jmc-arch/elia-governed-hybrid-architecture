@@ -898,10 +898,10 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 
 **Relations**:
 - Called from SM_DLG (generation).
-- Supports EL_APL (fine-tuning, LoRA).
+- Supports EL_LRN (fine-tuning, LoRA).
 - Supervision by SM_LOG (response time, resources).
 
-## EL_APL: Driven Learning
+## EL_LRN: Driven Learning
 **Objective**: Targeted mini-learning processes, activated only in MAINTENANCE if `learning_enabled = True`.
 **Neural Extension**:
 - Methods: LoRA, QLoRA for light adaptation.
@@ -910,7 +910,7 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 - Each learning session is constrained by strict quotas depending on the active mode.
 - In **adaptive mode**, limits are reduced: maximum 500 training examples, duration capped at 10 minutes, dataset size limited to 50 MB, mandatory validation on 100 test requests with automatic rollback if degradation above 3%.
 - In **full mode**, limits are extended: 5000 examples, 2 hours maximum, 500 MB, validation on 1000 requests with 5% degradation threshold.
-- Before starting any session, EL_APL performs a preliminary check of the provided dataset characteristics.
+- Before starting any session, EL_LRN performs a preliminary check of the provided dataset characteristics.
 - If dataset transmitted as file path, size controlled directly.
 - If dataset provided as iterator or in-memory structure, iterative counting performed in parallel with loading to detect any overflow before RAM saturation.
 - In case of detected non-compliance, session immediately rejected with explicit error message (logged in SM_LOG) indicating applicable limit and observed value.
@@ -1028,7 +1028,7 @@ Contract: module_id: str;
 - Return: bool.
 - `get_test_coverage()`: Test coverage. Contract: Return: float (0-100).
 
-**Triggers**: Activation if `debug_mode = True` or EL_APL (learning processes).
+**Triggers**: Activation if `debug_mode = True` or EL_LRN (learning processes).
 
 ## Open-Source Python Libraries Used
 
@@ -1214,7 +1214,7 @@ Post-short-circuit behavior:
 
 ### Parallel Phase: Maintenance (BACKGROUND)
 
-- Driven learning (EL_APL) if conditions met (monitoring `neural_processing` flag).
+- Driven learning (EL_LRN) if conditions met (monitoring `neural_processing` flag).
 - Parametric optimization (SM_CFG) based on operational signals convergence.
 - Continuous monitoring via SM_LOG and SM_GSM.
 - Archiving old data (EL_MEM).
