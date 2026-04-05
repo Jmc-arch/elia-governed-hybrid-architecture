@@ -111,7 +111,7 @@ The Elia system defines clear performance contracts for each critical component,
 - Availability: 99.99% (critical data)
 - Degraded Behavior: Temporary buffer SM_SYN, deferred writes
 
-**EL_LRN - Neural Inference**
+**EL_CRN - Neural Inference**
 
 - Inference Latency: P95 < 8000ms (medium profile)
 - Availability: 95% (acceptable with fallback)
@@ -415,7 +415,7 @@ Return: list[LogEntry].
 - Emergency kill-switch for unstable processes
 - Aggregation of health metrics (latency, errors, resources)
 - Triggering alerts via SM_LOG and SM_HUB
-- Coordination of recovery strategies with EL_LRN and SM_SGA
+- Coordination of recovery strategies with EL_CRN and SM_SGA
 - Provision of stability metrics to SM_HUB for global diffusion
 - Automatic triggering of MAINTENANCE modes (unchanged criteria)
 **SGA Alerts Monitoring**: In case of persistent degradation (neural activation refused for more than 15 minutes with reason "VETO_VALIDATION" or "VETO_STABILITY"), SM_GSM can trigger a transition to MAINTENANCE_STABILIZATION mode for in-depth investigation.
@@ -470,7 +470,7 @@ Limits: Minimum 3 requests, maximum according to hardware profile (low=5, medium
 3. **Adaptive Thresholds**: Containerized mode allows increased noise tolerance (0.40), while native mode requires stricter thresholds (0.35) as resource sharing is direct.
 4. **Adaptive Operational Timeouts**: Neural inference timeouts adjust automatically according to the detected hardware profile.
 Low profile: 12000ms (constrained hardware requires more time), medium profile: 8000ms (realistic reference CPU 4-cores), high profile: 5000ms (optimized configuration or GPU).
-These values apply to the EL_LRN.inference() interface and are propagated via SM_CFG at startup.
+These values apply to the EL_CRN.inference() interface and are propagated via SM_CFG at startup.
 
 - Concurrency capacity linked to hardware profile: low=5, medium=8, high=12 maximum simultaneous requests.
 **Standardized Interfaces** (contracts via Pydantic for strict validation):
@@ -598,7 +598,7 @@ If deviation > 15% between old and new threshold, notification to SM_GSM for val
 **Role**: Orchestrates conversational flow with context management.
 **Features**:
 - Dialogue state management (FSM via enum states).
-- Response generation via templates or EL_LRN.
+- Response generation via templates or EL_CRN.
 - User feedback integration for adaptation.
 - Multi-modal support (text, vocal via pyttsx3).
 **Timeouts Management**: Inference monitoring, symbolic fallback if timeout reached.
@@ -850,7 +850,7 @@ A same raw data cannot exist simultaneously in L1 and L2.
 Only calculated derivatives (aggregations, averages) can be in L1 if their source is in L2.
 - Temperature migration criterion: access frequency.
 
-## EL_LRN: Neural Network Core
+## EL_CRN: Neural Network Core
 **Role**: Central neural processing (transformer, language model, local inference).
 **Features**:
 - Encoding/decoding via local tokenizer.
@@ -865,18 +865,18 @@ Models: Llama 3.2 3B and DeBERTa-v3.
 If timeout is None, the value is retrieved from SM_CFG according to the active hardware profile (low: 12000ms, medium: 8000ms, high: 5000ms).
 - Returns a string or dictionary with confidence score if applicable.
 **Timeout Management by Caller**:
-Timeout is managed by the calling module (SM_DLG), not by EL_LRN itself.
+Timeout is managed by the calling module (SM_DLG), not by EL_CRN itself.
 Mechanism:
-- SM_DLG launches EL_LRN call in a dedicated thread via ThreadPoolExecutor
+- SM_DLG launches EL_CRN call in a dedicated thread via ThreadPoolExecutor
 - SM_DLG simultaneously starts a timer corresponding to the configured timeout (timeout configured according to SM_CFG profile)
-- If timer expires before EL_LRN return:
+- If timer expires before EL_CRN return:
 - SM_DLG cancels thread via future.cancel()
 - SM_DLG generates a structured TimeoutException
 - SM_DLG transmits exception to SM_LOG with full context
 - SM_DLG immediately switches to fallback symbolic processing
-- If EL_LRN returns before expiration: normal processing
+- If EL_CRN returns before expiration: normal processing
 
-Critical Guarantee: A complete EL_LRN blockage (GPU freeze, internal deadlock) never blocks SM_DLG.
+Critical Guarantee: A complete EL_CRN blockage (GPU freeze, internal deadlock) never blocks SM_DLG.
 Timeout is caller-side protection, independent of callee state.
 - Timeout applies to the entire processing chain (encoding, inference, decoding).
 Content of structured exception transmitted to SM_LOG:
@@ -1057,7 +1057,7 @@ SM_OS uses this data to interpret psutil metrics according to isolation context.
 - `spacy`: Natural language processing (tokenization, NER, POS tagging) for symbolic validation SM_VAL.
 - `scikit-learn`: Machine learning (classification, clustering) for SM_CFE inputs scoring and SM_LOG patterns detection.
 - `sentence-transformers`: Semantic embeddings for text vector representation and similarity search EL_MEM.
-- `transformers`: Hugging Face neural models (Llama 3.2 3B, Phi-3 Mini, DistilBERT, DeBERTa-v3-small) for EL_LRN inference.
+- `transformers`: Hugging Face neural models (Llama 3.2 3B, Phi-3 Mini, DistilBERT, DeBERTa-v3-small) for EL_CRN inference.
 - `torch`: PyTorch neural computation backend with GPU/CPU support for transformers models execution.
 - `accelerate`: GPU optimization (mixed precision, gradient accumulation) and multi-GPU models distribution.
 
@@ -1185,7 +1185,7 @@ Post-short-circuit behavior:
 **Neural Eligibility Evaluation via SM_SGA.evaluate_neural_eligibility()**: Hierarchical analysis (Security/Vetos, Quality, Context) to determine `neural_processing` flag.
 - Request analysis via SM_CFE (classification, routing).
 - Response generation via SM_DLG.
-- Optional calls to EL_LRN if `neural_processing = True` (validated by SM_SGA) and resources available.
+- Optional calls to EL_CRN if `neural_processing = True` (validated by SM_SGA) and resources available.
 - Output validation via SM_VAL (symbolic + neural if activated by flag).
 **Global_Monitoring_Score Calculation via SM_SGA.compute_global_score()**: Purely informative calculation for monitoring and dashboards, executed after operational decisions.
 - Systematic logging of OS context for any neural operation (cpu_elia, ram_elia_gb, noise_ratio in NeuralLogEntry.os_context).
@@ -1229,7 +1229,7 @@ Post-short-circuit behavior:
 3. Completion of in-progress requests.
 4. Complete state backup via EL_MEM.
 5. Closure of external connections (SM_WEB, SM_GRS).
-6. Neural models unloading (EL_LRN).
+6. Neural models unloading (EL_CRN).
 7. Final logs export (SM_LOG).
 8. SM_HUB shutdown (routing stopped, no more messages transit).
 9. SM_SYN shutdown (final state backup after routing shutdown, guarantees consistency).
