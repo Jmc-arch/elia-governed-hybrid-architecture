@@ -21,11 +21,11 @@ jobs:
 
       - name: Run tests
         run: |
-          # Ajoute la racine du projet au PYTHONPATH pour importer stage0 et stage1
-          export PYTHONPATH=$PYTHONPATH:$(pwd)
+          # Ajoute src/ au PYTHONPATH (structure moderne)
+          export PYTHONPATH=$PYTHONPATH:$(pwd)/src
           echo "PYTHONPATH = ${PYTHONPATH}"
 
-          # Lancement explicite des tests pour éviter les problèmes d'import avec unittest discover
+          # Lancement explicite des tests pour plus de fiabilité
           python -m unittest tests.test_el_mem -v
           python -m unittest tests.test_recovery -v
           python -m unittest tests.test_resilience -v
