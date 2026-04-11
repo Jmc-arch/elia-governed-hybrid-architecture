@@ -16,7 +16,7 @@
 - `subscribe(module_id, topics)`: Subscription to events. Contract: module_id: str, topics: list[str].
 - `publish(topic, event_data)`: Event publication.
 - Contract: topic: str, event_data: dict.
-- `get_isolation_status()`: List of modules currently isolated by SM_STM decision.
+- `get_isolation_status()`: List of modules currently isolated by SM_GSM decision.
 - Contract: Return dict with isolated_modules: list[dict] containing module_id, isolation_start, isolation_end, reason.
 - `reset_circuit_breaker(module_id)`: Manual circuit breaker reset.
 - Contract: module_id: str; Return: bool.
@@ -25,30 +25,30 @@
 - SM_HUB detects message delivery failures (timeout, network error, module unavailable).
 - Mechanism:
 - After 3 consecutive failures to the same module, SM_HUB publishes a `module_unreachable` event to the "system_health" topic.
-- SM_STM, subscribed to this topic, receives the alert and decides on the action (isolation, restart attempt, degraded mode).
-- If SM_STM decides to isolate the module, it publishes an `isolate_module` event containing the module identifier and isolation duration.
+- SM_GSM, subscribed to this topic, receives the alert and decides on the action (isolation, restart attempt, degraded mode).
+- If SM_GSM decides to isolate the module, it publishes an `isolate_module` event containing the module identifier and isolation duration.
 - SM_HUB, receiving this order, applies the isolation by temporarily refusing to route messages to this module.
-- Default isolation duration: 30 seconds, adjustable by SM_STM based on severity.
+- Default isolation duration: 30 seconds, adjustable by SM_GSM based on severity.
 - Restoration:
 - Automatic after expiration of the isolation delay
-- Or manual via `reset_circuit_breaker(module_id)` command called by SM_STM
+- Or manual via `reset_circuit_breaker(module_id)` command called by SM_GSM
 
-**State Persistence**: Circuit breaker state saved in EL_MEM via SM_CRD every 10 seconds.
+**State Persistence**: Circuit breaker state saved in EL_MEM via SM_SYN every 10 seconds.
 - Automatic restoration from EL_MEM on restart, applied after SM_HUB initialization.
 
-**Supervision**: SM_STM monitors circuit breaker state via get_isolation_status interface.
+**Supervision**: SM_GSM monitors circuit breaker state via get_isolation_status interface.
 - Alert SM_LOG if circuit breaker active for more than 5 consecutive minutes.
 
 **Fallback Mode**: If SM_HUB overloaded (>80% CPU for 1min, rare with pure routing):
 - Direct point-to-point routing via pre-loaded addresses (temporary broker bypass).
 - Alerts via SM_LOG (critical level).
-- Return to normal orchestrated by SM_STM after SM_HUB CPU <60% for 2 minutes, with confirmation by receipt of 3 consecutive heartbeats by the modules.
+- Return to normal orchestrated by SM_GSM after SM_HUB CPU <60% for 2 minutes, with confirmation by receipt of 3 consecutive heartbeats by the modules.
 
 **Direct Routing Mechanism**:
 **Prerequisites at Startup:**
 Each module loads a static routing table from SM_CFG at the time of its initialization.
 This table contains the network addresses of all modules with which it communicates directly.
-Table format (example for SM_ICF):
+Table format (example for SM_CFE):
 `direct_routes: { SM_VAL: "tcp://localhost:5001", SM_DLG: "tcp://localhost:5002", SM_LOG: "tcp://localhost:5003" }`
 **Fallback Mode Activation:**
 Receiving modules detect the absence of SM_HUB signal after 15 seconds (3 consecutive missed heartbeats).
@@ -64,18 +64,18 @@ In fallback mode (direct routing):
 Modules use pre-loaded addresses for direct communication.
 Message order is not guaranteed during this degraded phase.
 Maximum fallback mode duration: 5 minutes.
-Beyond that, SM_STM triggers a coordinated system restart.
+Beyond that, SM_GSM triggers a coordinated system restart.
 **Return to Normal Mode:**
 SM_HUB publishes the "hub_recovered" event after stabilization (CPU < 60% for 2 minutes).
 Modules switch to normal mode after receiving this event AND confirmation by receipt of 3 consecutive SM_HUB heartbeats.
 **Mutual Supervision Mechanism (Heartbeat)**:
 - SM_HUB emits a presence signal every 5 seconds to all modules subscribed to the "system_heartbeat" topic.
 - This signal contains the router state, queue size, and system stability metrics when available.
-- These stability metrics are provided by SM_STM via an asynchronous deposit every 3 seconds in a shared space readable by SM_HUB.
+- These stability metrics are provided by SM_GSM via an asynchronous deposit every 3 seconds in a shared space readable by SM_HUB.
 - If no metrics have been deposited for more than 15 seconds, the corresponding field is marked as unavailable (null) in the signal.
-- In parallel, SM_STM monitors the health of critical modules (SM_LOG, EL_MEM, SM_CRD) by observing their responses to signals emitted by SM_HUB.
-- This monitoring is performed independently of the metrics deposit, avoiding any circular dependency: SM_STM consumes SM_HUB signals to detect anomalies, but does not condition its own activity on the receipt of these signals.
-- In case of prolonged absence detection (3 consecutive missed signals, i.e., 15 seconds), SM_STM triggers a critical alert and may initiate a restart attempt of the failing module via system signal if the recovery policy allows it.
+- In parallel, SM_GSM monitors the health of critical modules (SM_LOG, EL_MEM, SM_SYN) by observing their responses to signals emitted by SM_HUB.
+- This monitoring is performed independently of the metrics deposit, avoiding any circular dependency: SM_GSM consumes SM_HUB signals to detect anomalies, but does not condition its own activity on the receipt of these signals.
+- In case of prolonged absence detection (3 consecutive missed signals, i.e., 15 seconds), SM_GSM triggers a critical alert and may initiate a restart attempt of the failing module via system signal if the recovery policy allows it.
 - Receiving modules detect the absence of SM_HUB signal after 15 seconds (timeout) and automatically switch to direct point-to-point routing mode (direct synchronous calls) to preserve service continuity, while emitting a local alert.
 - Reconnection attempts are made every 30 seconds.
 - Return to normal mode occurs after receipt of 3 consecutive signals, confirming regained stability.
@@ -83,7 +83,7 @@ Modules switch to normal mode after receiving this event AND confirmation by rec
 **Triggers**:
 - Initialization at startup.
 - Intensified continuous relay if `debug_mode = True`.
-- Transmission of critical notifications: SM_HUB queries SM_STM via `check_system_stability()`.
+- Transmission of critical notifications: SM_HUB queries SM_GSM via `check_system_stability()`.
 - If the return indicates `stable: false`, the critical notification is issued (the Global_Monitoring_Score does not intervene in this chain).
 
 ## Service Level Objectives (SLO)
@@ -98,7 +98,7 @@ The Elia system defines clear performance contracts for each critical component,
 - Availability: 99.9% (tolerance 8.6h downtime/year)
 - Degraded Behavior: Automatic direct routing switch
 
-**SM_CRD - Coordination and Locks**
+**SM_SYN - Coordination and Locks**
 
 - Lock Acquisition Latency: P99 < 30ms
 - Availability: 99.95% (high criticality)
@@ -109,15 +109,15 @@ The Elia system defines clear performance contracts for each critical component,
 - Atomic Read Latency: P95 < 5ms
 - Atomic Write Latency: P95 < 10ms
 - Availability: 99.99% (critical data)
-- Degraded Behavior: Temporary buffer SM_CRD, deferred writes
+- Degraded Behavior: Temporary buffer SM_SYN, deferred writes
 
-**EL_NNC - Neural Inference**
+**EL_CRN - Neural Inference**
 
 - Inference Latency: P95 < 8000ms (medium profile)
 - Availability: 95% (acceptable with fallback)
 - Degraded Behavior: Timeout to symbolic processing
 
-**SM_OSN - Cycle Validation**
+**SM_OS - Cycle Validation**
 
 - Validation Latency: P95 < 50ms
 - Availability: 100% (assume valid if failure)
@@ -145,7 +145,7 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 **Features**:
 - Cryptography via `cryptography` (Fernet, PBKDF2).
 - Pydantic contract validation for all inter-module messages.
-- JWT token management for SM_NFM.
+- JWT token management for SM_GRS.
 - Secure serialization via `orjson` with Pydantic schemas.
 
 **Standardized Interfaces**:
@@ -162,12 +162,12 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 - Validation on every inter-module message.
 - Token rotation every 60 minutes with blacklisting of expired tokens.
 
-### SM_CRD: Coordinator
+### SM_SYN: Synchronization Module
 **Role**: System state management, cache, backup/recovery, and EL_MEM access.
 **Features**:
 - System state synchronization: Manages global flags of `BehaviorConfig` and global state (`InteractionMode`).
 - Shared storage interface: Provides standardized accessors for EL_MEM with lazy loading. Unique entry point to EL_MEM.
-- **Accessibility Check**: Before any operation, SM_CRD checks the physical availability of EL_MEM via test read attempts (maximum 5 attempts spaced at 0.5s, 1s, 2s, 4s, 8s).
+- **Accessibility Check**: Before any operation, SM_SYN checks the physical availability of EL_MEM via test read attempts (maximum 5 attempts spaced at 0.5s, 1s, 2s, 4s, 8s).
 - If failure after 15 cumulative seconds, immediate system shutdown with critical error code "STORAGE_UNREACHABLE".
 - This check runs during Phase 0 (System Initialization), after EL_MEM launch but before operational modules activation.
 - Manages all inter-module coordination locks and the global finalization lock.
@@ -197,13 +197,13 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 - No interaction with other modules under this lock.
 - Duration: < 5ms (SLO).
 
-**Coordination Zone** (managed by SM_CRD):
+**Coordination Zone** (managed by SM_SYN):
 - Lock for orchestration of multi-module operations.
 - Used to prepare transactions in local memory.
 - Absolute rule: Always released BEFORE any outgoing call to another module.
 - Duration: < 20ms (SLO).
 
-**Finalization Zone** (managed by SM_CRD):
+**Finalization Zone** (managed by SM_SYN):
 - Exclusive global lock for the cycle finalization phase.
 - Acquired only after complete release of the Coordination Zone.
 - Only one cycle can be in finalization at a time.
@@ -219,11 +219,11 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 5. Publish via SM_HUB
 6. Release Finalization Zone lock
 
-**Anti-Deadlock Guarantees**: EL_MEM has no reference to SM_CRD or other modules.
-- SM_CRD holds references to EL_MEM but always releases coordination locks before outgoing calls to SM_HUB or acquisition of the finalization lock.
+**Anti-Deadlock Guarantees**: EL_MEM has no reference to SM_SYN or other modules.
+- SM_SYN holds references to EL_MEM but always releases coordination locks before outgoing calls to SM_HUB or acquisition of the finalization lock.
 - Mandatory timeout on locks — coordination: 500ms, finalization: 2 seconds, global fallback: 10 seconds.
 - If timeout reached, forced release with critical alert in SM_LOG.
-- Cycle detection: SM_CRD maintains a lock acquisition graph in memory. Before each acquisition, check for absence of potential cycle.
+- Cycle detection: SM_SYN maintains a lock acquisition graph in memory. Before each acquisition, check for absence of potential cycle.
 - Preemptive rejection if cycle detected.
 
 **Adaptive Warm-up**: Maintains two distinct counters during warm-up phase: Dense_validated_cycles counter (incremented if at least 5 user requests processed during the cycle window).
@@ -262,15 +262,15 @@ SLOs are continuously measured by SM_LOG and trigger progressive alerts (warning
 - `write_score_global(score)`: Writing Global_Monitoring_Score.
 **Simplified Writing and Propagation of Global_Monitoring_Score**:
 - Calculation phase: SM_SGA aggregates metrics and produces a numerical value for monitoring.
-- This value is transmitted to SM_CRD accompanied by a unique cycle identifier.
+- This value is transmitted to SM_SYN accompanied by a unique cycle identifier.
 **Persistence and Diffusion Phase**:
 1. **Step 1 (Writing)**: Acquisition of coordination lock, preparation of entry in local memory, call to EL_MEM.atomic_write, then immediate release of coordination lock.
 2. **Step 2 (Diffusion)**: Acquisition of global finalization lock.
-Asynchronous publication via SM_HUB to subscribers (SM_CFG, SM_STM).
+Asynchronous publication via SM_HUB to subscribers (SM_CFG, SM_GSM).
 3. **Confirmation Timeout**: 10 seconds.
 If timeout reached: retention of last valid Global_Score, warning level alert SM_LOG, cycle marked as "partial_propagation".
 
-**Finalization Phase**: Once diffusion is complete (with or without complete confirmations), SM_CRD updates status to "finalized", atomically copies the current entry to stable space, then releases finalization lock.
+**Finalization Phase**: Once diffusion is complete (with or without complete confirmations), SM_SYN updates status to "finalized", atomically copies the current entry to stable space, then releases finalization lock.
 **Temporal Guarantees (SLO)**: Target latency between calculation and stable availability: median < 50ms, P99 < 150ms.
 
 **Triggers**:
@@ -308,7 +308,7 @@ Priority read on memory buffer, disk fallback if buffer empty.
 - Feeding dashboards and analytical reports
 
 - Feedback never directly modifies operational flags (neural_processing, learning_enabled) nor neural activation decisions.
-- Possible indirect influence: If a satisfaction alert triggers a system mode transition via SM_STM, then all operations are impacted by the new mode (load reduction, temporary deactivation of non-essential modules).
+- Possible indirect influence: If a satisfaction alert triggers a system mode transition via SM_GSM, then all operations are impacted by the new mode (load reduction, temporary deactivation of non-essential modules).
 
 **Standardized Interfaces** (contracts via Pydantic for strict validation):
 - `receive_log_event(event)`: Receives event from SM_HUB.
@@ -346,7 +346,7 @@ Return: list[LogEntry].
 - Concerned module, attempt duration, context (input length, available resources), timeout reason (GPU saturation, insufficient RAM, model not loaded).
 
 **FeedbackLogEntry Schema**:
-- Fields: type: "feedback", user_id: str, feedback_type: enum["implicit", "explicit"], value: float (0-1, satisfaction score), context: dict (conversation_id, message_id, input_hash), timestamp: float (automatic), source: str (default "EL_ITF").
+- Fields: type: "feedback", user_id: str, feedback_type: enum["implicit", "explicit"], value: float (0-1, satisfaction score), context: dict (conversation_id, message_id, input_hash), timestamp: float (automatic), source: str (default "EL_IFC").
 
 **CycleInvalidationLogEntry Schema**:
 - Type: "cycle_invalidation"
@@ -370,12 +370,12 @@ Return: list[LogEntry].
 - Formula: (cycle_validity_rate × 0.5 + (1 - average_noise_ratio) × 0.3 + (1 - rejection_rate) × 0.2) × 100. Score above 80 considered excellent.
 - The resilience_score is a passive monitoring metric. Impact on system: NO direct impact on Global_Monitoring_Score or mode transitions.
 - Generated alerts are informative for admin (recommendation to migrate environment).
-- Exception: If resilience_score < 40 for > 2 hours → SM_STM triggers forced MAINTENANCE_DEGRADED mode (extreme protection).
+- Exception: If resilience_score < 40 for > 2 hours → SM_GSM triggers forced MAINTENANCE_DEGRADED mode (extreme protection).
 - Aggregation per neural module: timeout_rate_last_10min, average_latency, p95_latency.
 
 **Associated Alerts**:
 **Alert "high_os_noise"**: Triggered if average_noise_ratio above 0.5 for 15 minutes.
-- Action: Notification SM_STM, suggestion to check host system load.
+- Action: Notification SM_GSM, suggestion to check host system load.
 **Alert "low_cycle_validity"**: Triggered if cycle_validity_rate below 50% for 10 minutes.
 - Action: Automatic switch to MAINTENANCE_STABILIZATION if overall system health degraded.
 **Alert "admission_saturation"**: Triggered if admission_rejection_rate above 20% for 5 minutes.
@@ -385,20 +385,20 @@ Return: list[LogEntry].
 - Note: The resilience_score being composite, adjustment of latency objectives does not impact its alert thresholds, which remain at 60 (warning) and 40 (critical).
 - Warning level alert if forced eviction triggered.
 
-- New metric `end_to_end_latency`: Measurement: Timestamp entry EL_ITF → timestamp exit EL_ITF.
+- New metric `end_to_end_latency`: Measurement: Timestamp entry EL_IFC → timestamp exit EL_IFC.
 **Differentiated Objectives by Processing Type**:
 - Pure symbolic processing (neural_processing=False): P50 < 200ms, P95 < 400ms, P99 < 600ms.
 - Light neural processing (models < 500M parameters, ex: DistilBERT): P50 < 800ms, P95 < 1500ms, P99 < 2500ms.
 - Standard neural processing (1-3B parameter models, ex: Llama-3.2-3B on CPU): P50 < 4000ms, P95 < 8500ms, P99 < 12000ms.
-- Alert: If P95 exceeds the objective of its category for 5 consecutive minutes → notification SM_STM with recommendation (quantization, model change, or hardware upgrade).
+- Alert: If P95 exceeds the objective of its category for 5 consecutive minutes → notification SM_GSM with recommendation (quantization, model change, or hardware upgrade).
 - New metric: `cache_eviction_rate` (evictions/minute)
 
 **Supervision & Monitoring**:
 - CPU/RAM/GPU collection via `psutil`.
 - Adaptive thresholds, watchdog/restart.
-**SM_STM Watchdog**: Monitors SM_STM presence via subscription to "system_heartbeat" topic emitted by SM_HUB.
+**SM_GSM Watchdog**: Monitors SM_GSM presence via subscription to "system_heartbeat" topic emitted by SM_HUB.
 - Checks presence and freshness of stability_metrics field in heartbeat payload.
-- If field absent, null, or obsolete timestamp (difference between heartbeat receipt time and metrics timestamp greater than 15 seconds), triggers critical alert "SM_STM_UNRESPONSIVE" with automatic restart attempt via system signal (SIGHUP or OS equivalent).
+- If field absent, null, or obsolete timestamp (difference between heartbeat receipt time and metrics timestamp greater than 15 seconds), triggers critical alert "SM_GSM_UNRESPONSIVE" with automatic restart attempt via system signal (SIGHUP or OS equivalent).
 - Detailed logging of recovery attempt.
 - Health dashboard via Streamlit or lightweight endpoints.
 - Email/local alerts.
@@ -408,24 +408,24 @@ Return: list[LogEntry].
 - Proposal for proper shutdown if critical resources.
 - Model unloading if saturation.
 
-### SM_STM: Global Stability Manager
+### SM_GSM: Global Stability Manager
 **Role**: Supervises all modules to detect global oscillations, including neural modules.
 - Sole arbiter of mode transitions. Receives neural activation decisions from SM_SGA with their full justification.
 **Features**:
 - Emergency kill-switch for unstable processes
 - Aggregation of health metrics (latency, errors, resources)
 - Triggering alerts via SM_LOG and SM_HUB
-- Coordination of recovery strategies with EL_NNC and SM_SGA
+- Coordination of recovery strategies with EL_CRN and SM_SGA
 - Provision of stability metrics to SM_HUB for global diffusion
 - Automatic triggering of MAINTENANCE modes (unchanged criteria)
-**SGA Alerts Monitoring**: In case of persistent degradation (neural activation refused for more than 15 minutes with reason "VETO_VALIDATION" or "VETO_STABILITY"), SM_STM can trigger a transition to MAINTENANCE_STABILIZATION mode for in-depth investigation.
+**SGA Alerts Monitoring**: In case of persistent degradation (neural activation refused for more than 15 minutes with reason "VETO_VALIDATION" or "VETO_STABILITY"), SM_GSM can trigger a transition to MAINTENANCE_STABILIZATION mode for in-depth investigation.
 **Anti-Oscillation Mechanisms**: Hysteresis on all thresholds.
 - Anti-oscillation hysteresis: exit threshold +5 points vs entry threshold (ex: enter STABILIZATION at <70, exit at ≥75).
 **Standardized Interfaces**:
-- `check_system_stability()`: Evaluates global stability using SM_OSN metrics to filter external OS noise.
+- `check_system_stability()`: Evaluates global stability using SM_OS metrics to filter external OS noise.
 - Provides Stability_Index (0-100), operational score used for mode transition decisions.
 - This score is calculated independently of the Global_Monitoring_Score produced by SM_SGA.
-- Return dict with stable: bool, metrics: dict (including cpu_elia, ram_elia_gb, noise_ratio from SM_OSN), noise_detected: bool.
+- Return dict with stable: bool, metrics: dict (including cpu_elia, ram_elia_gb, noise_ratio from SM_OS), noise_detected: bool.
 - `trigger_emergency_stop(reason)`: Emergency stop.
 - Contract: reason: str.
 - `get_recovery_strategy()`: Recommended recovery strategy.
@@ -453,9 +453,9 @@ Return: list[LogEntry].
 **Automatic Adjustments**:
 SM_CFG adjusts max_concurrent_requests by observing three independent operational signals:
 
-1. Stability_Index provided by SM_STM (system stability score 0-100)
+1. Stability_Index provided by SM_GSM (system stability score 0-100)
 2. CPU/RAM pressure measured by SM_LOG (raw metrics)
-3. Rejection rate observed by EL_ITF (percentage on sliding window)
+3. Rejection rate observed by EL_IFC (percentage on sliding window)
 
 These three signals are distinct from the Global_Monitoring_Score calculated by SM_SGA, which remains a passive metric.
 If these three conditions converge positively for 3 cycles, the threshold increases by +1 request.
@@ -470,7 +470,7 @@ Limits: Minimum 3 requests, maximum according to hardware profile (low=5, medium
 3. **Adaptive Thresholds**: Containerized mode allows increased noise tolerance (0.40), while native mode requires stricter thresholds (0.35) as resource sharing is direct.
 4. **Adaptive Operational Timeouts**: Neural inference timeouts adjust automatically according to the detected hardware profile.
 Low profile: 12000ms (constrained hardware requires more time), medium profile: 8000ms (realistic reference CPU 4-cores), high profile: 5000ms (optimized configuration or GPU).
-These values apply to the EL_NNC.inference() interface and are propagated via SM_CFG at startup.
+These values apply to the EL_CRN.inference() interface and are propagated via SM_CFG at startup.
 
 - Concurrency capacity linked to hardware profile: low=5, medium=8, high=12 maximum simultaneous requests.
 **Standardized Interfaces** (contracts via Pydantic for strict validation):
@@ -489,7 +489,7 @@ These values apply to the EL_NNC.inference() interface and are propagated via SM
 - MAINTENANCE_OPTIMIZATION mode → complete optimization.
 - Environment detection → adaptation at startup or drift.
 
-### SM_OSN: OS Noise
+### SM_OS: OS Interference Manager
 **Role**: Monitors and filters external OS noise to isolate Elia-specific metrics.
 - Validation of evaluation cycles to avoid biases due to host interferences.
 **Features**:
@@ -511,7 +511,7 @@ These values apply to the EL_NNC.inference() interface and are propagated via SM
 At startup, before operational stabilization, a 5-minute calibration phase runs:
 Process:
 
-1. SM_OSN runs a light synthetic load (equivalent to 3-5 simulated user requests per minute)
+1. SM_OS runs a light synthetic load (equivalent to 3-5 simulated user requests per minute)
 2. Continuous noise_ratio measurement every 10 seconds (30 samples)
 3. Calculation of the 95th percentile (P95) of observed noise_ratio
 4. Definition of dynamic threshold = P95 + 20% safety margin
@@ -527,7 +527,7 @@ If calibration fails (insufficient samples, too high variance), application of d
 
 Periodic recalibration:
 Every 24 hours, recalculation of threshold in background.
-If deviation > 15% between old and new threshold, notification to SM_STM for validation before application.
+If deviation > 15% between old and new threshold, notification to SM_GSM for validation before application.
 **Default Profiles**:
 - Containerized profile: default threshold 0.40 (used only if dynamic calibration fails or unavailable).
 - Native profile: default threshold 0.35 (used only if dynamic calibration fails or unavailable).
@@ -544,10 +544,10 @@ If deviation > 15% between old and new threshold, notification to SM_STM for val
 
 **Triggers**:
 - Validation before each evaluation cycle (Phase 2).
-- Alert if noise_ratio >0.5 for 5 minutes (notification SM_STM).
+- Alert if noise_ratio >0.5 for 5 minutes (notification SM_GSM).
 - Background periodic report every 10 minutes.
 
-### SM_ICF: Input Classification and Filtering
+### SM_CFE: Input Classification and Filtering
 **Role**: Analysis and classification of user inputs for optimized routing.
 **Features**:
 - Multi-modal classification: Text, vocal (ASR via vosk), visual (OCR via pytesseract, objects via opencv).
@@ -564,7 +564,7 @@ If deviation > 15% between old and new threshold, notification to SM_STM for val
 - `extract_entities(text)`: NER extraction. Contract: text: str; Return: list[dict].
 
 **Triggers**:
-- Each user input via EL_ITF.
+- Each user input via EL_IFC.
 - Intensified if reduced system stability (strict filtering).
 - Neural deactivation if warm-up active.
 
@@ -598,7 +598,7 @@ If deviation > 15% between old and new threshold, notification to SM_STM for val
 **Role**: Orchestrates conversational flow with context management.
 **Features**:
 - Dialogue state management (FSM via enum states).
-- Response generation via templates or EL_NNC.
+- Response generation via templates or EL_CRN.
 - User feedback integration for adaptation.
 - Multi-modal support (text, vocal via pyttsx3).
 **Timeouts Management**: Inference monitoring, symbolic fallback if timeout reached.
@@ -622,7 +622,7 @@ If deviation > 15% between old and new threshold, notification to SM_STM for val
 **Features**:
 **Binary Neural Activation Decision by Evaluation**:
 **Level 1 - Safety Vetos (Hard Constraints):**
-If validation score < 60, stability < 40, or excessive OS noise (SM_OSN invalidation), activation blocked.
+If validation score < 60, stability < 40, or excessive OS noise (SM_OS invalidation), activation blocked.
 Explicit reason logged.
 **Level 2 - Composite Evaluation with Hysteresis:**
 Calculate composite score: 0.5 × validation + 0.3 × performance + 0.2 × stability.
@@ -636,7 +636,7 @@ If incomplete data, neural deactivation and monitoring score set to 50.
 **Returned Decision Reasons:**
 - VETO_VALIDATION: Validation score < 60 (Level 1)
 - VETO_STABILITY: Stability score < 40 (Level 1)
-- VETO_OS_NOISE: Cycle invalidated by SM_OSN (Level 1)
+- VETO_OS_NOISE: Cycle invalidated by SM_OS (Level 1)
 - COMPOSITE_ACTIVATED: Composite score ≥ 75 and previous state False (Level 2)
 - COMPOSITE_DEACTIVATED: Composite score < 65 and previous state True (Level 2)
 - HYSTERESIS_STABLE: Composite score between 65 and 75, conservation of current state (Level 2)
@@ -656,15 +656,15 @@ No module can read this value to modify its behavior.
 - User feedback follows a strictly separate processing chain from neural activation decisions:
 - Data flow:
 
-1. EL_ITF collects feedback → SM_LOG (storage + passive monitoring)
+1. EL_IFC collects feedback → SM_LOG (storage + passive monitoring)
 2. SM_LOG calculates aggregated satisfaction metrics (sliding average, trend)
 3. If satisfaction < 0.4 for 10 consecutive cycles → SM_LOG emits "low_user_satisfaction" alert
-4. SM_STM, receiving this alert, may decide on a transition to MAINTENANCE_STABILIZATION for investigation
+4. SM_GSM, receiving this alert, may decide on a transition to MAINTENANCE_STABILIZATION for investigation
 
 - Important clarification:
 - Feedback does NOT enter the neural eligibility calculation performed by SM_SGA.evaluate_neural_eligibility().
-- However, if low feedback triggers a global system mode change (SM_STM decision), then the new mode indirectly impacts all operations, including neural activation.
-- This influence is indirect, asynchronous, and passes through human or supervised arbitration (SM_STM).
+- However, if low feedback triggers a global system mode change (SM_GSM decision), then the new mode indirectly impacts all operations, including neural activation.
+- This influence is indirect, asynchronous, and passes through human or supervised arbitration (SM_GSM).
 **Fallback**: If incomplete data, neural deactivation.
 - Monitoring score set to 50.
 **Standardized Interfaces** (contracts via Pydantic for strict validation):
@@ -686,16 +686,16 @@ Contract: Return: float.
 - Critical event.
 - Exhaustive logging of each decision with reason.
 
-## EL_ITF: Final User Interface
-**Role**: User entry/exit point, distinct from SM_NFM (which manages external APIs).
-- Integrates with EL_SYS via SM_HUB for message routing and SM_ICF for input classification.
+## EL_IFC: Final User Interface
+**Role**: User entry/exit point, distinct from SM_GRS (which manages external APIs).
+- Integrates with EL_SYS via SM_HUB for message routing and SM_CFE for input classification.
 **Features**:
 **Conversational Only**:
 - Web/mobile chat.
 - Vocal interface.
 - Conversational CLI.
 
-**Separate Administrator Interface** (via EL_ITF in admin mode):
+**Separate Administrator Interface** (via EL_IFC in admin mode):
 - Read-only Streamlit dashboard.
 - Logs and metrics consultation.
 
@@ -711,35 +711,35 @@ Contract: Return: float.
 **AdmissionController Sub-module**:
 - Integrated in receive_user_input, not exposed as public API.
 - Limitation of active simultaneous requests number: configurable threshold via SM_CFG (default 5).
-- System stability check via SM_STM before acceptance.
+- System stability check via SM_GSM before acceptance.
 - Rejection with explicit message if unstable system or limit reached.
 - Automatic slot release after processing via guaranteed internal finally mechanism.
 **Security Mechanism: Automatic Heartbeat**
 - In addition to the finally block (which covers 99% of normal cases), a heartbeat system guarantees slot release even in case of brutal crash:
 - Operation:
 
-1. Each accepted request records its `request_id` and timestamp in SM_CRD
-2. During processing, EL_ITF sends a heartbeat every 5 seconds to SM_CRD to signal that the request is still active
+1. Each accepted request records its `request_id` and timestamp in SM_SYN
+2. During processing, EL_IFC sends a heartbeat every 5 seconds to SM_SYN to signal that the request is still active
 
 **Heartbeat Implementation**: Separate non-blocking thread launched via recursive `threading.Timer`.
-If sending fails (SM_CRD temporarily unavailable), retry attempt after 2 seconds (maximum 3 attempts).
-If 3 attempts fail, heartbeat marked as "failed". The admission slot is released automatically. The request is abandoned gracefully — processing cannot continue without SM_CRD.
-The 30-second timeout on SM_CRD side remains unchanged.
+If sending fails (SM_SYN temporarily unavailable), retry attempt after 2 seconds (maximum 3 attempts).
+If 3 attempts fail, heartbeat marked as "failed". The admission slot is released automatically. The request is abandoned gracefully — processing cannot continue without SM_SYN.
+The 30-second timeout on SM_SYN side remains unchanged.
 
-3. SM_CRD monitors heartbeats: if no ping received for 30 seconds for a given `request_id`, slot automatically released
+3. SM_SYN monitors heartbeats: if no ping received for 30 seconds for a given `request_id`, slot automatically released
 4. SM_LOG receives "orphan_request_detected" alert with details for post-mortem investigation
 
 - Guarantee:
-- In case of EL_ITF crash (OOM, SIGKILL, network loss), slot released in maximum 30 seconds, preventing permanent system blockage.
-- This mechanism is transparent for business code (no explicit call required, managed by internal EL_ITF decorator).
+- In case of EL_IFC crash (OOM, SIGKILL, network loss), slot released in maximum 30 seconds, preventing permanent system blockage.
+- This mechanism is transparent for business code (no explicit call required, managed by internal EL_IFC decorator).
 **Parameters**:
-- `max_concurrent_requests`: 5 by default (adjustable via SM_CFG el_itf section).
+- `max_concurrent_requests`: 5 by default (adjustable via SM_CFG el_ifc section).
 - `rejection_cooldown`: 30 seconds (suggested time before user retry).
-- `critical_mode_threshold`: Compromised system stability (SM_STM) activates preventive rejections.
+- `critical_mode_threshold`: Compromised system stability (SM_GSM) activates preventive rejections.
 **Activation Conditions**: Always active in INTERACTIVE mode.
 
 **Triggers**:
-- Each user message → SM_ICF via SM_HUB.
+- Each user message → SM_CFE via SM_HUB.
 - Each pipeline response → user display.
 - Admin mode: activation by authentication.
 
@@ -755,9 +755,9 @@ The 30-second timeout on SM_CRD side remains unchanged.
 - Role of EL_MEM (Python layer):
 - Minimalist wrapper exposing atomic_read() and atomic_write()
 - Translation of Compare-and-Swap operations into conditional SQL queries
-- Management of SQLite errors and propagation to SM_CRD
+- Management of SQLite errors and propagation to SM_SYN
 - No coordination or orchestration logic
-- Role of SM_CRD (orchestrator):
+- Role of SM_SYN (orchestrator):
 - Preparation of multi-key transactions in local memory
 - Sequential calls to EL_MEM.atomic_write() for each key
 
@@ -783,12 +783,12 @@ If a data changes level (promotion L2→L1 for frequent access, or degradation L
 **Technical Implementation**:
 - Storage relies on SQLite with WAL mode (Write-Ahead Logging) enabled, allowing concurrent reads during write operations.
 - Incremental compaction (checkpointing) runs automatically (ex: every 1000 transactions), avoiding prolonged locks.
-- Heavy maintenance operations (complete index reorganization, full vacuum) are reserved for proper shutdown phase or MAINTENANCE mode with explicit write pause, orchestrated by SM_CRD.
+- Heavy maintenance operations (complete index reorganization, full vacuum) are reserved for proper shutdown phase or MAINTENANCE mode with explicit write pause, orchestrated by SM_SYN.
 - LMDB is available as an alternative for high concurrency environments.
 - ACID transactions guarantee atomicity of operations (atomic_read, atomic_write) via short-duration internal locks (SLO <5ms).
 - Compare-and-Swap mechanism (via `expected_version`) allows conditional updates without corruption risk.
-- In case of saturation (latency >100ms detected), temporary switch to read-only mode can be activated by SM_CRD to preserve critical performance.
-During this mode, SM_CRD accumulates writes in a local memory buffer (maximum capacity 100 operations or 10MB).
+- In case of saturation (latency >100ms detected), temporary switch to read-only mode can be activated by SM_SYN to preserve critical performance.
+During this mode, SM_SYN accumulates writes in a local memory buffer (maximum capacity 100 operations or 10MB).
 Once EL_MEM returns below acceptable latency threshold (detected by 3 consecutive operations under 50ms), the buffer is emptied in batches of 20 writes grouped into unique transactions.
 If the buffer reaches its maximum capacity before desaturation, new non-critical writes are temporarily rejected with warning level alert SM_LOG, while critical writes (system state, backups) switch to blocking synchronous mode with extended timeout (500ms).
 **Main Functions**:
@@ -818,16 +818,16 @@ If the buffer reaches its maximum capacity before desaturation, new non-critical
 - Unique backup/restore.
 
 **Access Policy**:
-- Write and read: ALWAYS via SM_CRD (security, consistency, atomicity).
-- Synchronization: Orchestrated by SM_CRD via atomic locks and ACID transactions.
-**Consistency Policy**: Single source of truth per type, synchronization via atomic locks orchestrated by SM_CRD.
+- Write and read: ALWAYS via SM_SYN (security, consistency, atomicity).
+- Synchronization: Orchestrated by SM_SYN via atomic locks and ACID transactions.
+**Consistency Policy**: Single source of truth per type, synchronization via atomic locks orchestrated by SM_SYN.
 **Explicit Authority Rule**:
 - For operational metadata (system flags, interaction counters, monitoring scores), the **L1 cache is authoritative**.
 - For conversational content (raw messages, semantic vectors, thematic history), the **L2 cache is authoritative**.
 - Event propagation via SM_HUB (publish/subscribe). Mandatory key prefixes for isolation: `hot_` (L1), `warm_` (L2).
 - Rule: Active users context (< 5min) in L1 with key `hot_user_ctx:{user_id}` (aggregated metadata + conversation reference L2).
 - Rule: Recent conversations (5-30min) in L2 with key `warm_conv:{conversation_id}`.
-- Cache invalidation: SM_HUB publishes `cache_invalidate` with key → SM_CRD evicts L1 → EL_MEM evicts L2.
+- Cache invalidation: SM_HUB publishes `cache_invalidate` with key → SM_SYN evicts L1 → EL_MEM evicts L2.
 **Flow Model: Unidirectional Write, Bidirectional Read**
 - Write flow (unidirectional):
 - Any operational metadata modification occurs in L1
@@ -840,9 +840,9 @@ If the buffer reaches its maximum capacity before desaturation, new non-critical
 - Concrete example (satisfaction_avg update):
 
 1. New feedback stored in L2 (raw message with score)
-2. SM_CRD reads the last N feedbacks from L2 (allowed cross read)
-3. SM_CRD calculates average in local memory (no write during this calculation)
-4. SM_CRD writes the `satisfaction_avg` result in L1 (derived metadata)
+2. SM_SYN reads the last N feedbacks from L2 (allowed cross read)
+3. SM_SYN calculates average in local memory (no write during this calculation)
+4. SM_SYN writes the `satisfaction_avg` result in L1 (derived metadata)
 5. L2 keeps raw messages intact (content authority source)
 
 - Conserved non-duplication rule:
@@ -850,14 +850,14 @@ A same raw data cannot exist simultaneously in L1 and L2.
 Only calculated derivatives (aggregations, averages) can be in L1 if their source is in L2.
 - Temperature migration criterion: access frequency.
 
-## EL_NNC: Neural Network Core
+## EL_CRN: Neural Network Core
 **Role**: Central neural processing (transformer, language model, local inference).
 **Features**:
 - Encoding/decoding via local tokenizer.
 - Contextual response generation (PyTorch/Transformers).
 - Optimizations: quantization, GPU/CPU fallback.
 Models: Llama 3.2 3B and DeBERTa-v3.
-- Interaction with EL_MEM via SM_CRD only.
+- Interaction with EL_MEM via SM_SYN only.
 - LRU model unloading if idle >5min or RAM >80%.
 **Standardized Interfaces** (contracts via Pydantic for strict validation):
 - `inference(input_data, model_type, context, timeout=None)`: Neural inference.
@@ -865,18 +865,18 @@ Models: Llama 3.2 3B and DeBERTa-v3.
 If timeout is None, the value is retrieved from SM_CFG according to the active hardware profile (low: 12000ms, medium: 8000ms, high: 5000ms).
 - Returns a string or dictionary with confidence score if applicable.
 **Timeout Management by Caller**:
-Timeout is managed by the calling module (SM_DLG), not by EL_NNC itself.
+Timeout is managed by the calling module (SM_DLG), not by EL_CRN itself.
 Mechanism:
-- SM_DLG launches EL_NNC call in a dedicated thread via ThreadPoolExecutor
+- SM_DLG launches EL_CRN call in a dedicated thread via ThreadPoolExecutor
 - SM_DLG simultaneously starts a timer corresponding to the configured timeout (timeout configured according to SM_CFG profile)
-- If timer expires before EL_NNC return:
+- If timer expires before EL_CRN return:
 - SM_DLG cancels thread via future.cancel()
 - SM_DLG generates a structured TimeoutException
 - SM_DLG transmits exception to SM_LOG with full context
 - SM_DLG immediately switches to fallback symbolic processing
-- If EL_NNC returns before expiration: normal processing
+- If EL_CRN returns before expiration: normal processing
 
-Critical Guarantee: A complete EL_NNC blockage (GPU freeze, internal deadlock) never blocks SM_DLG.
+Critical Guarantee: A complete EL_CRN blockage (GPU freeze, internal deadlock) never blocks SM_DLG.
 Timeout is caller-side protection, independent of callee state.
 - Timeout applies to the entire processing chain (encoding, inference, decoding).
 Content of structured exception transmitted to SM_LOG:
@@ -898,10 +898,10 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 
 **Relations**:
 - Called from SM_DLG (generation).
-- Supports EL_LRN (fine-tuning, LoRA).
+- Supports EL_APL (fine-tuning, LoRA).
 - Supervision by SM_LOG (response time, resources).
 
-## EL_LRN: Driven Learning
+## EL_APL: Driven Learning
 **Objective**: Targeted mini-learning processes, activated only in MAINTENANCE if `learning_enabled = True`.
 **Neural Extension**:
 - Methods: LoRA, QLoRA for light adaptation.
@@ -910,7 +910,7 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 - Each learning session is constrained by strict quotas depending on the active mode.
 - In **adaptive mode**, limits are reduced: maximum 500 training examples, duration capped at 10 minutes, dataset size limited to 50 MB, mandatory validation on 100 test requests with automatic rollback if degradation above 3%.
 - In **full mode**, limits are extended: 5000 examples, 2 hours maximum, 500 MB, validation on 1000 requests with 5% degradation threshold.
-- Before starting any session, EL_LRN performs a preliminary check of the provided dataset characteristics.
+- Before starting any session, EL_APL performs a preliminary check of the provided dataset characteristics.
 - If dataset transmitted as file path, size controlled directly.
 - If dataset provided as iterator or in-memory structure, iterative counting performed in parallel with loading to detect any overflow before RAM saturation.
 - In case of detected non-compliance, session immediately rejected with explicit error message (logged in SM_LOG) indicating applicable limit and observed value.
@@ -995,8 +995,8 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 
 **Triggers**: Activation by scheduled requests in MAINTENANCE or critical transmission.
 
-### SM_NFM: Network Flows Management
-**Role**: External REST API for third-party integrations and incoming webhooks (distinct from EL_ITF).
+### SM_GRS: Network Flows Management
+**Role**: External REST API for third-party integrations and incoming webhooks (distinct from EL_IFC).
 **Features**:
 - REST API via `fastapi` for external integrations.
 - Authentication via `pyjwt`, IP limitation.
@@ -1010,7 +1010,7 @@ Edge cases management: On constrained hardware profiles (hardware_profile "low")
 
 **Triggers**: Activation by external requests or `debug_mode = True`.
 
-## EL_QAT: Quality and Tests
+## EL_QA: Quality and Tests
 
 ### SM_TST: Tests and Validation
 **Features**:
@@ -1028,7 +1028,7 @@ Contract: module_id: str;
 - Return: bool.
 - `get_test_coverage()`: Test coverage. Contract: Return: float (0-100).
 
-**Triggers**: Activation if `debug_mode = True` or EL_LRN (learning processes).
+**Triggers**: Activation if `debug_mode = True` or EL_APL (learning processes).
 
 ## Open-Source Python Libraries Used
 
@@ -1044,7 +1044,7 @@ Contract: module_id: str;
 - `cachetools`: Optimized in-memory cache with eviction policies (LRU, TTL) for fast access performance.
 - `platform`: Fine characterization of Linux environment (standard Python library).
 Used by SM_CFG to identify distribution (Ubuntu, Debian, Alpine...), kernel version (cgroups v1/v2 detection), CPU architecture (x86_64, ARM64) and determine containerization via system inspection.
-SM_OSN uses this data to interpret psutil metrics according to isolation context.
+SM_OS uses this data to interpret psutil metrics according to isolation context.
 
 ### Data & Storage
 
@@ -1055,25 +1055,25 @@ SM_OSN uses this data to interpret psutil metrics according to isolation context
 ### NLP & AI
 
 - `spacy`: Natural language processing (tokenization, NER, POS tagging) for symbolic validation SM_VAL.
-- `scikit-learn`: Machine learning (classification, clustering) for SM_ICF inputs scoring and SM_LOG patterns detection.
+- `scikit-learn`: Machine learning (classification, clustering) for SM_CFE inputs scoring and SM_LOG patterns detection.
 - `sentence-transformers`: Semantic embeddings for text vector representation and similarity search EL_MEM.
-- `transformers`: Hugging Face neural models (Llama 3.2 3B, Phi-3 Mini, DistilBERT, DeBERTa-v3-small) for EL_NNC inference.
+- `transformers`: Hugging Face neural models (Llama 3.2 3B, Phi-3 Mini, DistilBERT, DeBERTa-v3-small) for EL_CRN inference.
 - `torch`: PyTorch neural computation backend with GPU/CPU support for transformers models execution.
 - `accelerate`: GPU optimization (mixed precision, gradient accumulation) and multi-GPU models distribution.
 
 ### Audio & Vision
 
-- `pyaudio`, `librosa`: Audio (capture, signal processing, MFCC features extraction) for vocal inputs SM_ICF.
+- `pyaudio`, `librosa`: Audio (capture, signal processing, MFCC features extraction) for vocal inputs SM_CFE.
 - `vosk`: Offline vocal recognition (ASR) for audio inputs transcription.
 - `pytesseract`: OCR (text extraction from images) for visual documents processing.
 - `presidio-analyzer`: Sensitive data anonymization (PII detection) for privacy protection.
-- `opencv-python`: Vision (camera capture, image processing, objects detection) for visual inputs SM_ICF.
-- `pyttsx3`: Vocal synthesis (TTS) for vocal outputs EL_ITF.
+- `opencv-python`: Vision (camera capture, image processing, objects detection) for visual inputs SM_CFE.
+- `pyttsx3`: Vocal synthesis (TTS) for vocal outputs EL_IFC.
 
 ### Web & Network
 
 - `requests`: HTTP client with retry, timeout, and sessions management for SM_WEB API calls.
-- `fastapi`, `streamlit`: Web interfaces (FastAPI REST API for SM_NFM, Streamlit dashboard for admin EL_ITF).
+- `fastapi`, `streamlit`: Web interfaces (FastAPI REST API for SM_GRS, Streamlit dashboard for admin EL_IFC).
 - `beautifulsoup4`: HTML/XML parsing for web content extraction SM_WEB.
 - `scrapy`: Ethical web scraping with robots.txt respect for structured data collection.
 
@@ -1099,7 +1099,7 @@ Each request receives a cycle_id marker.
 3. VALIDATING: Check of two conditions:
 
 - Number of completed requests ≥ 3
-- SM_OSN validation (acceptable OS noise)
+- SM_OS validation (acceptable OS noise)
 
 4. FINALIZED or INVALIDATED according to validation result.
 In-flight requests management:
@@ -1111,7 +1111,7 @@ Guarantee: No user request lost or canceled.
 A cycle in VALIDATING state passes to FINALIZED if and only if:
 
 - Completed requests counter (corresponding cycle_id marker + completed state) reaches at least 3
-- SM_OSN.is_cycle_valid() function returns True (OS noise below profile threshold)
+- SM_OS.is_cycle_valid() function returns True (OS noise below profile threshold)
 
 Invalidated cycles (either by lack of requests or excessive OS noise) retain the Global_Monitoring_Score of the previous cycle and are recorded in SM_LOG for later analysis, but do not enter trend calculations.
 To guarantee minimal rhythm, a forcing mechanism intervenes every 120 seconds if no cycle has been finalized, independent of requests number.
@@ -1126,16 +1126,16 @@ The system starts in two distinct sub-phases:
 1. SM_SEC: Cryptographic keys generation (175ms)
 2. SM_HUB: Broker connection + routing tables loading (350ms)
 3. EL_MEM: SQLite WAL mounting + integrity check (1400ms)
-4. SM_CRD: EL_MEM accessibility check via test read attempts (maximum 15s with exponential backoff).
+4. SM_SYN: EL_MEM accessibility check via test read attempts (maximum 15s with exponential backoff).
 If failure: immediate shutdown error code "STORAGE_UNREACHABLE".
 5. SM_LOG: Minimal memory buffer initialization (logging active immediately)
-6. Operational modules: SM_CFG, SM_OSN, SM_STM, EL_ITF (total ~1000ms)
-**Pre-flight Check**: Imperative validation of EL_MEM physical accessibility (disk/socket mount) before effective SM_CRD launch.
+6. Operational modules: SM_CFG, SM_OS, SM_GSM, EL_IFC (total ~1000ms)
+**Pre-flight Check**: Imperative validation of EL_MEM physical accessibility (disk/socket mount) before effective SM_SYN launch.
 If failure, immediate shutdown with critical error code.
 Persistent state restoration if available (configuration, stable Global_Score, resilience state).
 Routing activation via SM_HUB.
 Detection and application of environment profile (Linux Docker, etc.).
-**Operational Stabilization (variable duration, see SM_CRD - Adaptive warm-up for detailed criteria, typically 5-20 minutes)**: Observation period (formerly "warm-up") allowing the system to validate its stability before full activation.
+**Operational Stabilization (variable duration, see SM_SYN - Adaptive warm-up for detailed criteria, typically 5-20 minutes)**: Observation period (formerly "warm-up") allowing the system to validate its stability before full activation.
 Neural processing remains deactivated during this phase to prioritize light symbolic validations.
 Exit from this phase occurs when one of the following conditions is met: 8 evaluation cycles validated with at least 5 requests each, 60 cumulative requests processed with minimum 5 dense cycles, minimum duration 10 minutes, or absolute timeout of 20 minutes.
 **Operational Stabilization Short-Circuit**
@@ -1161,18 +1161,18 @@ Post-short-circuit behavior:
 
 ### Phase 1: Input (INPUT)
 
-- User inputs collection (SM_ICF).
+- User inputs collection (SM_CFE).
 - Filtering and normalization.
-- Context extraction from EL_MEM via SM_CRD.
+- Context extraction from EL_MEM via SM_SYN.
 - Input validation via SM_VAL (symbolic only during stabilization).
-- Systematic admission control via EL_ITF before processing.
+- Systematic admission control via EL_IFC before processing.
 - OS metrics collection at input time for contextualization.
 
 ### Phase 2: Processing (PROCESS)
 
 **Hierarchical Execution Order**:
 
-1. **Cycle Validation via SM_OSN**: Query SM_OSN.is_cycle_valid() once per cycle before any costly operation.
+1. **Cycle Validation via SM_OS**: Query SM_OS.is_cycle_valid() once per cycle before any costly operation.
 2. **If Invalid Cycle (OS Noise Detected)**:
 
 - Retention of last valid decisional state.
@@ -1183,16 +1183,16 @@ Post-short-circuit behavior:
 3. **If Valid Cycle (Acceptable OS Noise)**:
 
 **Neural Eligibility Evaluation via SM_SGA.evaluate_neural_eligibility()**: Hierarchical analysis (Security/Vetos, Quality, Context) to determine `neural_processing` flag.
-- Request analysis via SM_ICF (classification, routing).
+- Request analysis via SM_CFE (classification, routing).
 - Response generation via SM_DLG.
-- Optional calls to EL_NNC if `neural_processing = True` (validated by SM_SGA) and resources available.
+- Optional calls to EL_CRN if `neural_processing = True` (validated by SM_SGA) and resources available.
 - Output validation via SM_VAL (symbolic + neural if activated by flag).
 **Global_Monitoring_Score Calculation via SM_SGA.compute_global_score()**: Purely informative calculation for monitoring and dashboards, executed after operational decisions.
 - Systematic logging of OS context for any neural operation (cpu_elia, ram_elia_gb, noise_ratio in NeuralLogEntry.os_context).
 
 4. **Finalization**:
 
-- Persistence of Global_Monitoring_Score in EL_MEM via SM_CRD if valid cycle.
+- Persistence of Global_Monitoring_Score in EL_MEM via SM_SYN if valid cycle.
 - Acquisition of global finalization lock to guarantee mutual exclusion of cycles during this phase.
 - Event propagation via SM_HUB.
 **Guarantee**: Validation ALWAYS before calculations to avoid metrics pollution by external OS noise.
@@ -1200,23 +1200,23 @@ Post-short-circuit behavior:
 ### Phase 3: Output (OUTPUT)
 
 - Final output validation (SM_VAL).
-- Delivery to EL_ITF.
+- Delivery to EL_IFC.
 - Conversation storage in EL_MEM (working.conversations space, L2 update).
-- Feedback collection via EL_ITF:
+- Feedback collection via EL_IFC:
 - Feedback published to SM_HUB "user_feedback" topic.
 - SM_HUB routes only to SM_LOG (storage and alert analysis).
 - Feedback does NOT influence next cycle neural calculation (decoupling).
 - Update user_context in EL_MEM (satisfaction_avg, interaction_count, L1 update).
-- Update Global_Score_previous (stable monitoring version) for next cycle via SM_CRD (atomic write).
+- Update Global_Score_previous (stable monitoring version) for next cycle via SM_SYN (atomic write).
 - Recording of final OS metrics in SM_LOG for performance correlation.
-- Admission slot release in EL_ITF.
-- Update of resilience statistics in SM_CRD.
+- Admission slot release in EL_IFC.
+- Update of resilience statistics in SM_SYN.
 
 ### Parallel Phase: Maintenance (BACKGROUND)
 
-- Driven learning (EL_LRN) if conditions met (monitoring `neural_processing` flag).
+- Driven learning (EL_APL) if conditions met (monitoring `neural_processing` flag).
 - Parametric optimization (SM_CFG) based on operational signals convergence.
-- Continuous monitoring via SM_LOG and SM_STM.
+- Continuous monitoring via SM_LOG and SM_GSM.
 - Archiving old data (EL_MEM).
 - Periodic OS noise patterns analysis (every 10 minutes).
 - Automatic environment profile adjustment if detected drift (ex: increasing structural noise).
@@ -1225,14 +1225,14 @@ Post-short-circuit behavior:
 ### Shutdown Phase: Proper Shutdown
 
 1. Shutdown signal reception via SM_HUB.
-2. SM_STM coordinates progressive shutdown.
+2. SM_GSM coordinates progressive shutdown.
 3. Completion of in-progress requests.
 4. Complete state backup via EL_MEM.
-5. Closure of external connections (SM_WEB, SM_NFM).
-6. Neural models unloading (EL_NNC).
+5. Closure of external connections (SM_WEB, SM_GRS).
+6. Neural models unloading (EL_CRN).
 7. Final logs export (SM_LOG).
 8. SM_HUB shutdown (routing stopped, no more messages transit).
-9. SM_CRD shutdown (final state backup after routing shutdown, guarantees consistency).
+9. SM_SYN shutdown (final state backup after routing shutdown, guarantees consistency).
 10. SM_SEC shutdown last (cryptographic sessions closure after all modules).
 
 License: Apache License 2.0
