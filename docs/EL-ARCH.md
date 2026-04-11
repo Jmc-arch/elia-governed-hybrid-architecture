@@ -100,7 +100,7 @@ The Elia system defines clear performance contracts for each critical component,
 
 **SM_SYN - Coordination and Locks**
 
-- Lock Acquisition Latency: P99 < 30ms
+- Lock Acquisition Latency: P99 < 500ms (coordination zone)
 - Availability: 99.95% (high criticality)
 - Degraded Behavior: Forced timeout with alert, automatic release
 
@@ -630,7 +630,7 @@ Adaptive thresholds according to current state:
 - If neural_processing = False: activation if score ≥ 75
 - If neural_processing = True: deactivation if score < 65
 
-The 4-point margin prevents oscillations due to normal fluctuations.
+The 10-point margin prevents oscillations due to normal fluctuations.
 **Level 3 - Default Conservatism:**
 If incomplete data, neural deactivation and monitoring score set to 50.
 **Returned Decision Reasons:**
